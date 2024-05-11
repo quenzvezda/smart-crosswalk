@@ -3,7 +3,7 @@ import cv2
 import math
 
 # Start webcam
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(2)
 cap.set(3, 640)  # Width
 cap.set(4, 480)  # Height
 

@@ -60,3 +60,6 @@ python -c "import torch; print('Is cuda available:', torch.cuda.is_available())"
 ## Sumber
 - TensorFlow: [Panduan Instalasi TensorFlow](https://www.tensorflow.org/install/pip?hl=id#windows-native_1)
 - PyTorch: [Panduan Memulai PyTorch](https://pytorch.org/get-started/locally/#anaconda)
+- Miniconda: [Miniconda Download Site](https://docs.anaconda.com/free/miniconda/)
+- cuDNN: [Nvidia cuDNN Download Site](https://developer.nvidia.com/cudnn-downloads)
+- CUDA Toolkit: [Nvidia CUDA Toolkit Download Site](https://developer.nvidia.com/cuda-downloads)
