@@ -9,6 +9,7 @@ cap.set(4, 480)  # Height
 
 # Load model
 model = YOLO("../models/trisakti-yolov8n.pt")
+model.to('cuda')
 
 # Object classes
 classNames = ["mobil", "pejalan kaki"]
