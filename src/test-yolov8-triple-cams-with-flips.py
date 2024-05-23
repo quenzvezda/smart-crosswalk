@@ -4,7 +4,7 @@ import math
 import threading
 
 # Load model
-model = YOLO("../models/trisakti-yolov8n.pt")
+model = YOLO("../models/trisakti-batch_1-yolov8s-roboflow.pt")
 model.to('cuda')
 
 # Object classes
@@ -13,7 +13,8 @@ classNames = ["mobil", "pejalan kaki"]
 # Set a confidence threshold
 confidence_threshold = 0.5
 
-def process_webcam(index):
+
+def process_webcam(index, flip=False):
     # Start webcam
     cap = cv2.VideoCapture(index)
     cap.set(3, 640)  # Width
@@ -23,6 +24,10 @@ def process_webcam(index):
         success, img = cap.read()
         if not success:
             break
+
+        # Flip the image if required
+        if flip:
+            img = cv2.flip(img, -1)  # Flip vertically and horizontally
 
         results = model(img, stream=True)
 
@@ -64,14 +69,18 @@ def process_webcam(index):
     cap.release()
     cv2.destroyAllWindows()
 
+
 # Create threads for each webcam
-thread1 = threading.Thread(target=process_webcam, args=(0,))
+thread1 = threading.Thread(target=process_webcam, args=(0, True))  # Only flip webcam 0
 thread2 = threading.Thread(target=process_webcam, args=(1,))
+thread3 = threading.Thread(target=process_webcam, args=(2,))
 
 # Start threads
 thread1.start()
 thread2.start()
+thread3.start()
 
 # Join threads to the main thread
 thread1.join()
 thread2.join()
+thread3.join()
