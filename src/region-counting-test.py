@@ -1,4 +1,7 @@
 import argparse
+import signal
+import sys
+
 import cv2
 from pathlib import Path
 import numpy as np
@@ -13,7 +16,7 @@ track_history = defaultdict(list)
 counting_regions = [
     {
         "name": "YOLOv8 Rectangle Region",
-        "polygon": Polygon([(200, 250), (440, 250), (440, 550), (200, 550)]),
+        "polygon": Polygon([(176, 36), (416, 36), (416, 336), (176, 336)]),
         "counts": 0,
         "dragging": False,
         "region_color": (37, 255, 225),
@@ -59,6 +62,7 @@ def run(
     track_thickness=2,
     region_thickness=2,
 ):
+    global videocapture
     if source.isdigit():
         source = int(source)
 
@@ -66,65 +70,77 @@ def run(
     if not videocapture.isOpened():
         raise ValueError("Unable to open video source")
 
+    signal.signal(signal.SIGINT, signal_handler)
+
     model = YOLO(f"{weights}")
     model.to("cuda" if device == "0" else "cpu")
 
-    while videocapture.isOpened():
-        success, frame = videocapture.read()
-        if not success:
-            break
-
-        results = model.track(frame, persist=True, classes=classes)
-        annotator = Annotator(frame, line_width=line_thickness)
-
-        if results[0].boxes.id is not None:
-            boxes = results[0].boxes.xyxy.cpu().numpy()
-            track_ids = results[0].boxes.id.cpu().tolist()
-            clss = results[0].boxes.cls.cpu().tolist()
-
-            for box, track_id, cls in zip(boxes, track_ids, clss):
-                annotator.box_label(box, str(model.model.names[cls]), color=colors(cls, True))
-                bbox_center = ((box[0] + box[2]) / 2, (box[1] + box[3]) / 2)
-
-                track = track_history[track_id]
-                track.append(bbox_center)
-                if len(track) > 30:
-                    track.pop(0)
-
-                # Menggambar jalur tracking
-                if len(track) > 1:  # Pastikan ada lebih dari satu titik untuk membentuk garis
-                    points = np.array(track, dtype=np.int32)
-                    cv2.polylines(frame, [points], isClosed=False, color=colors(cls, True), thickness=track_thickness)
-
-                # Count objects within regions
-                for region in counting_regions:
-                    if region["polygon"].contains(Point(bbox_center)):
-                        region["counts"] += 1
-
-        # Draw regions and update frame annotations
-        for region in counting_regions:
-            region_label = str(region["counts"])
-            region_color = region["region_color"]
-            region_text_color = region["text_color"]
-
-            polygon_coords = np.array(region["polygon"].exterior.coords, dtype=np.int32)
-            centroid_x, centroid_y = int(region["polygon"].centroid.x), int(region["polygon"].centroid.y)
-
-            cv2.polylines(frame, [polygon_coords], isClosed=True, color=region_color, thickness=region_thickness)
-            cv2.putText(frame, region_label, (centroid_x, centroid_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, region_text_color, line_thickness)
-
-        if view_img:
-            cv2.imshow("YOLOv8 Region Counter", frame)
-            cv2.setMouseCallback("YOLOv8 Region Counter", mouse_callback)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+    try:
+        while videocapture.isOpened():
+            success, frame = videocapture.read()
+            if not success:
                 break
 
-        # Reset counts after displaying
-        for region in counting_regions:
-            region["counts"] = 0
+            results = model.track(frame, persist=True, classes=classes)
+            annotator = Annotator(frame, line_width=line_thickness)
 
-    videocapture.release()
-    cv2.destroyAllWindows()
+            if results[0].boxes.id is not None:
+                boxes = results[0].boxes.xyxy.cpu().numpy()
+                track_ids = results[0].boxes.id.cpu().tolist()
+                clss = results[0].boxes.cls.cpu().tolist()
+
+                for box, track_id, cls in zip(boxes, track_ids, clss):
+                    annotator.box_label(box, str(model.model.names[cls]), color=colors(cls, True))
+                    bbox_center = ((box[0] + box[2]) / 2, (box[1] + box[3]) / 2)
+
+                    track = track_history[track_id]
+                    track.append(bbox_center)
+                    if len(track) > 60:
+                        track.pop(0)
+
+                    # Menggambar jalur tracking
+                    if len(track) > 1:  # Pastikan ada lebih dari satu titik untuk membentuk garis
+                        points = np.array(track, dtype=np.int32)
+                        cv2.polylines(frame, [points], isClosed=False, color=colors(cls, True),
+                                      thickness=track_thickness)
+
+                    # Count objects within regions
+                    for region in counting_regions:
+                        if region["polygon"].contains(Point(bbox_center)):
+                            region["counts"] += 1
+
+            # Draw regions and update frame annotations
+            for region in counting_regions:
+                region_label = str(region["counts"])
+                region_color = region["region_color"]
+                region_text_color = region["text_color"]
+
+                polygon_coords = np.array(region["polygon"].exterior.coords, dtype=np.int32)
+                centroid_x, centroid_y = int(region["polygon"].centroid.x), int(region["polygon"].centroid.y)
+
+                cv2.polylines(frame, [polygon_coords], isClosed=True, color=region_color, thickness=region_thickness)
+                cv2.putText(frame, region_label, (centroid_x, centroid_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7,
+                            region_text_color, line_thickness)
+
+                # Display coordinates
+                coords_text = "Coords: " + ', '.join([f"({int(x)}, {int(y)})" for x, y in polygon_coords])
+                cv2.putText(frame, coords_text, (10, frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                            region_text_color, 1)
+
+            if view_img:
+                cv2.imshow("YOLOv8 Region Counter", frame)
+                cv2.setMouseCallback("YOLOv8 Region Counter", mouse_callback)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+
+            # Reset counts after displaying
+            for region in counting_regions:
+                region["counts"] = 0
+    except KeyboardInterrupt:
+        print("testr")
+    finally:
+        videocapture.release()
+        cv2.destroyAllWindows()
 
 def parse_opt():
     parser = argparse.ArgumentParser()
@@ -137,6 +153,12 @@ def parse_opt():
     parser.add_argument("--track-thickness", type=int, default=2, help="Tracking line thickness")
     parser.add_argument("--region-thickness", type=int, default=4, help="Region thickness")
     return parser.parse_args()
+
+def signal_handler(sig, frame):
+    print("You pressed Ctrl+C!")
+    videocapture.release()
+    cv2.destroyAllWindows()
+    sys.exit(0)
 
 def main(opt):
     run(**vars(opt))
