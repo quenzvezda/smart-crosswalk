@@ -3,6 +3,7 @@ from time import sleep
 
 # Mobil Hijau 10 Detik - Orang Merah 10 Detik
 # Waktu Pergantian Dari Merah ke Hijau Total Selama 3 Detik (2 Detik Kuning + 1 Detik Merah (Semuanya Merah))
+# Mobil Merah 5 Detik - Orang Hijau 5 Detik
 
 # Inisialisasi LED berdasarkan pin yang diberikan
 def initialize_leds(pins):
