@@ -2,6 +2,7 @@ import socket
 from gpiozero import LED
 from time import sleep
 from playsound import playsound
+import threading
 
 
 # Inisialisasi LED berdasarkan pin yang diberikan
@@ -30,8 +31,10 @@ def traffic_light_cycle():
 
 def handle_pedestrian_crossing():
     print("Orang terdeteksi, mengubah lampu menjadi merah")
-    # Memutar audio informasi
-    playsound("sound/tunggu-10d.mp3")
+    # Memutar audio informasi di thread terpisah
+    audio_thread = threading.Thread(target=play_audio, args=("sound/tunggu-10d.mp3",))
+    audio_thread.start()
+    print("Suara diputar...")
     sleep(10)
 
     # Lampu mobil kuning selama 2 detik
@@ -88,6 +91,10 @@ def handle_pedestrian_crossing():
     mobil['kuning'].off()
     mobil['hijau'].on()
     print("Lampu Mobil Hijau, Pejalan Kaki Merah")
+
+
+def play_audio(file_path):
+    playsound(file_path)
 
 
 def cleanup():
