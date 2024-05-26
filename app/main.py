@@ -1,12 +1,11 @@
 import tkinter as tk
 from tkinter import scrolledtext
-import cv2
-from PIL import Image, ImageTk
 import threading
 import time
 import queue
 import logging
-from detector import detect_pedestrian, detect_vehicle
+from detector_orang import detect_pedestrian
+from detector_mobil import detect_vehicle
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -27,29 +26,6 @@ def update_log(log_widget):
             pass
         time.sleep(0.1)
 
-# Function to capture video from a webcam and display it
-def show_webcam(widget, source, flip=False):
-    cap = cv2.VideoCapture(source)
-    if not cap.isOpened():
-        raise ValueError(f"Unable to open video source {source}")
-
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
-
-        if flip:
-            frame = cv2.flip(frame, -1)
-
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        img = Image.fromarray(frame)
-        imgtk = ImageTk.PhotoImage(image=img)
-        widget.imgtk = imgtk
-        widget.configure(image=imgtk)
-        time.sleep(0.03)  # To reduce CPU usage
-
-    cap.release()
-
 # Function to add log messages to the queue
 def log_message(message):
     log_queue.put(message)
@@ -58,8 +34,8 @@ def log_message(message):
 def start_detection_threads(weights, device):
     pejalan_kaki_detected = {"kiri": False, "kanan": False}
     vehicle_detected = {"detected": False}
-    threading.Thread(target=detect_pedestrian, args=(weights, device, "kiri", pejalan_kaki_detected)).start()
-    threading.Thread(target=detect_pedestrian, args=(weights, device, "kanan", pejalan_kaki_detected)).start()
+    threading.Thread(target=detect_pedestrian, args=(weights, device, "kiri", pejalan_kaki_detected, vehicle_detected)).start()
+    threading.Thread(target=detect_pedestrian, args=(weights, device, "kanan", pejalan_kaki_detected, vehicle_detected)).start()
     threading.Thread(target=detect_vehicle, args=(weights, device, vehicle_detected)).start()
 
 # Tkinter GUI
