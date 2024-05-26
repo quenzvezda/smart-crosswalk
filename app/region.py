@@ -1,7 +1,7 @@
-import cv2
 from shapely import Point
 from shapely.geometry import Polygon
 from collections import defaultdict
+import cv2
 
 # Global variable for tracking history and regions
 track_history = defaultdict(list)
@@ -15,6 +15,7 @@ counting_regions = [
         "text_color": (0, 0, 255),
     },
 ]
+
 
 def mouse_callback(event, x, y, flags, param):
     global current_region

@@ -1,7 +1,15 @@
 import socket
 import threading
 import time
+import logging
+import queue
 
+logger = logging.getLogger('client')
+
+# Create a queue for logging messages
+log_queue = queue.Queue()
+
+isProcessRun = False
 
 def send_data_to_server(data):
     try:
@@ -11,9 +19,13 @@ def send_data_to_server(data):
         client_socket.connect((host, port))
         client_socket.sendall(data.encode('utf-8'))
         client_socket.close()
+        message = f"Mengirim data ke server: {data}"
+        logger.info(message)
+        log_message(message)
     except Exception as e:
-        print(f"Error sending data to server: {e}")
-
+        error_message = f"Error sending data to server: {e}"
+        logger.error(error_message)
+        log_message(error_message)
 
 def monitor_server_response():
     global isProcessRun
@@ -29,7 +41,14 @@ def monitor_server_response():
                 response = client_socket.recv(1024).decode('utf-8')
                 if response == "Fungsi Pedestrian Selesai":
                     isProcessRun = False
-                    print("Fungsi pedestrian selesai. Anda dapat mengirim perintah lagi.")
+                    message = "Fungsi pedestrian selesai. Anda dapat mengirim perintah lagi."
+                    logger.info(message)
+                    log_message(message)
                 client_socket.close()
             except Exception as e:
-                print(f"Error checking server response: {e}")
+                error_message = f"Error checking server response: {e}"
+                logger.error(error_message)
+                log_message(error_message)
+
+def log_message(message):
+    log_queue.put(message)

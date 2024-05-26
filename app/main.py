@@ -1,56 +1,60 @@
+import tkinter as tk
+from tkinter import scrolledtext
 import threading
-import signal
-import sys
+import queue
 import time
 from detector import detect_pedestrian, detect_vehicle
-from client import send_data_to_server, monitor_server_response
+
+# Create a queue for logging messages
+log_queue = queue.Queue()
 
 # Global flags
 pejalan_kaki_detected = {"kiri": False, "kanan": False}
 vehicle_detected = False
 
-def pedestrian_monitor(weights, device, region_side):
-    global pejalan_kaki_detected
-    detect_pedestrian(weights, device, region_side, pejalan_kaki_detected)
 
-def vehicle_monitor(weights, device):
-    global vehicle_detected
-    detect_vehicle(weights, device, vehicle_detected)
-
-def main(weights, device):
-    pedestrian_thread_kiri = threading.Thread(target=pedestrian_monitor, args=(weights, device, "kiri"))
-    pedestrian_thread_kanan = threading.Thread(target=pedestrian_monitor, args=(weights, device, "kanan"))
-    vehicle_thread = threading.Thread(target=vehicle_monitor, args=(weights, device))
-    server_thread = threading.Thread(target=monitor_server_response)
-
-    pedestrian_thread_kiri.start()
-    pedestrian_thread_kanan.start()
-    vehicle_thread.start()
-    server_thread.start()
-
+# Function to update the log
+def update_log(log_widget):
     while True:
-        if pejalan_kaki_detected["kiri"] or pejalan_kaki_detected["kanan"]:
-            if vehicle_detected:
-                send_data_to_server("Terdeteksi Orang Di Penyebrangan (Dengan Mobil)")
-            else:
-                send_data_to_server("Terdeteksi Orang Di Penyebrangan (Tanpa Mobil)")
-            pejalan_kaki_detected["kiri"] = False
-            pejalan_kaki_detected["kanan"] = False
-            vehicle_detected = False
-        time.sleep(1)
+        try:
+            message = log_queue.get(block=False)
+            log_widget.config(state='normal')
+            log_widget.insert(tk.END, message + '\n')
+            log_widget.config(state='disabled')
+            log_widget.yview(tk.END)
+        except queue.Empty:
+            pass
+        time.sleep(0.1)
 
-def parse_opt():
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--weights", type=str, default="yolov8n.pt", help="initial weights path")
-    parser.add_argument("--device", default="0", help="cuda device, i.e. 0 or cpu")
-    return parser.parse_args()
 
-def signal_handler(sig, frame):
-    print("You pressed Ctrl+C!")
-    sys.exit(0)
+# Function to add log messages to the queue
+def log_message(message):
+    log_queue.put(message)
 
-if __name__ == "__main__":
-    opt = parse_opt()
-    signal.signal(signal.SIGINT, signal_handler)
-    main(opt.weights, opt.device)
+
+# Function to start the pedestrian and vehicle detection threads
+def start_detection_threads(weights, device):
+    threading.Thread(target=detect_pedestrian,
+                     args=(weights, device, "kiri", pejalan_kaki_detected, log_message)).start()
+    threading.Thread(target=detect_pedestrian,
+                     args=(weights, device, "kanan", pejalan_kaki_detected, log_message)).start()
+    threading.Thread(target=detect_vehicle, args=(weights, device, vehicle_detected, log_message)).start()
+
+
+# Tkinter GUI
+root = tk.Tk()
+root.title("Traffic Control Simulator")
+
+# Log display
+log_display = scrolledtext.ScrolledText(root, width=80, height=20, state='disabled')
+log_display.grid(row=1, column=1)
+
+# Start the thread to update the log
+threading.Thread(target=update_log, args=(log_display,)).start()
+
+# Start detection threads
+weights = "../models/trisakti-batch_1-yolov8s-roboflow.pt"
+device = "0"
+start_detection_threads(weights, device)
+
+root.mainloop()
