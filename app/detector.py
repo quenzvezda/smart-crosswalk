@@ -5,7 +5,7 @@ from collections import defaultdict
 from shapely.geometry import Point
 from ultralytics import YOLO
 from ultralytics.utils.plotting import Annotator, colors
-from region import counting_regions, track_history
+from region import counting_regions, track_history, mouse_callback
 import logging
 from datetime import datetime, timedelta
 from contextlib import contextmanager
@@ -105,13 +105,19 @@ def detect_pedestrian(weights, device, region_side, pejalan_kaki_detected, vehic
                 cv2.putText(frame, region_label, (centroid_x, centroid_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7,
                             region_text_color, 2)
 
+                coords_text = "Coords: " + ', '.join([f"({int(x)}, {int(y)})" for x, y in polygon_coords])
+                cv2.putText(frame, coords_text, (10, frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                            region_text_color, 1)
+
             time.sleep(0.03)  # To reduce CPU usage
 
             for region in counting_regions:
                 region["counts"] = 0
 
             # Show frame in OpenCV window
-            cv2.imshow(f"YOLOv8 Region Counter - {region_side}", frame)
+            window_name = f"YOLOv8 Region Counter - {region_side}"
+            cv2.imshow(window_name, frame)
+            cv2.setMouseCallback(window_name, mouse_callback)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
@@ -170,7 +176,9 @@ def detect_vehicle(weights, device, vehicle_detected, log_message):
             time.sleep(0.03)  # To reduce CPU usage
 
             # Show frame in OpenCV window
-            cv2.imshow("YOLOv8 Vehicle Detection", frame)
+            window_name = "YOLOv8 Vehicle Detection"
+            cv2.imshow(window_name, frame)
+            cv2.setMouseCallback(window_name, mouse_callback)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 

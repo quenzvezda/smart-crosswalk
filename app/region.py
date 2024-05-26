@@ -1,5 +1,4 @@
-from shapely import Point
-from shapely.geometry import Polygon
+from shapely.geometry import Point, Polygon
 from collections import defaultdict
 import cv2
 
@@ -16,6 +15,7 @@ counting_regions = [
     },
 ]
 
+current_region = None
 
 def mouse_callback(event, x, y, flags, param):
     global current_region

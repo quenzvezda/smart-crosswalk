@@ -4,6 +4,7 @@ import threading
 import queue
 import time
 from detector import detect_pedestrian, detect_vehicle
+from region import mouse_callback
 
 # Create a queue for logging messages
 log_queue = queue.Queue()
