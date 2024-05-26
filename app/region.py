@@ -3,10 +3,23 @@ from collections import defaultdict
 import cv2
 
 # Global variable for tracking history and regions
-track_history = defaultdict(list)
-counting_regions = [
+track_history_kiri = defaultdict(list)
+track_history_kanan = defaultdict(list)
+
+counting_regions_kiri = [
     {
-        "name": "YOLOv8 Rectangle Region",
+        "name": "YOLOv8 Rectangle Region Kiri",
+        "polygon": Polygon([(176, 36), (416, 36), (416, 336), (176, 336)]),
+        "counts": 0,
+        "dragging": False,
+        "region_color": (37, 255, 225),
+        "text_color": (0, 0, 255),
+    },
+]
+
+counting_regions_kanan = [
+    {
+        "name": "YOLOv8 Rectangle Region Kanan",
         "polygon": Polygon([(176, 36), (416, 36), (416, 336), (176, 336)]),
         "counts": 0,
         "dragging": False,
@@ -19,6 +32,7 @@ current_region = None
 
 def mouse_callback(event, x, y, flags, param):
     global current_region
+    counting_regions = param
 
     # Mouse left button down event
     if event == cv2.EVENT_LBUTTONDOWN:

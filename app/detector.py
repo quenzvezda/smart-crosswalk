@@ -5,29 +5,13 @@ from collections import defaultdict
 from shapely.geometry import Point
 from ultralytics import YOLO
 from ultralytics.utils.plotting import Annotator, colors
-from region import counting_regions, track_history, mouse_callback
+from region import counting_regions_kiri, counting_regions_kanan, track_history_kiri, track_history_kanan, mouse_callback
 import logging
-from datetime import datetime, timedelta
-from contextlib import contextmanager
+from client import log_message
 
 logger = logging.getLogger('detector')
 
-# Global variable for region entry times
-region_entry_times = defaultdict(lambda: defaultdict(datetime))
-
-
-@contextmanager
-def suppress_logging(level=logging.WARNING):
-    logger = logging.getLogger("ultralytics")
-    previous_level = logger.getEffectiveLevel()
-    logger.setLevel(level)
-    try:
-        yield
-    finally:
-        logger.setLevel(previous_level)
-
-
-def detect_pedestrian(weights, device, region_side, pejalan_kaki_detected, vehicle_detected, log_message):
+def detect_pedestrian(weights, device, region_side, pejalan_kaki_detected):
     model = YOLO(f"{weights}")
     model.to("cuda" if device == "0" else "cpu")
 
@@ -36,17 +20,21 @@ def detect_pedestrian(weights, device, region_side, pejalan_kaki_detected, vehic
     if not videocapture.isOpened():
         raise ValueError(f"Unable to open video source {source}")
 
+    track_history = track_history_kiri if region_side == "kiri" else track_history_kanan
+    counting_regions = counting_regions_kiri if region_side == "kiri" else counting_regions_kanan
+
     try:
+        start_time = None
+        last_log_time = time.time()
         while videocapture.isOpened():
             success, frame = videocapture.read()
             if not success:
                 break
 
-            with suppress_logging(logging.WARNING):
-                results = model.track(frame, persist=True)
-
+            results = model.track(frame, persist=True)
             annotator = Annotator(frame, line_width=2)
-            current_time = datetime.now()
+
+            current_time = time.time()
 
             if results[0].boxes.id is not None:
                 boxes = results[0].boxes.xyxy.cpu().numpy()
@@ -69,30 +57,19 @@ def detect_pedestrian(weights, device, region_side, pejalan_kaki_detected, vehic
                     for region in counting_regions:
                         if region["polygon"].contains(Point(bbox_center)):
                             region["counts"] += 1
-                            if track_id not in region_entry_times[region["name"]]:
-                                region_entry_times[region["name"]][track_id] = current_time
-                            else:
-                                time_in_region = current_time - region_entry_times[region["name"]][track_id]
-                                if time_in_region >= timedelta(seconds=5):
-                                    pejalan_kaki_detected[region_side] = True
-                                    message = f"Pejalan kaki {track_id} terdeteksi di {region['name']} selama 5 detik."
+                            if start_time is None:
+                                start_time = current_time
+                            elif current_time - start_time >= 5:
+                                pejalan_kaki_detected[region_side] = True
+                                if current_time - last_log_time >= 5:
+                                    message = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Pejalan kaki {track_id} terdeteksi di {region['name']} selama 5 detik."
                                     logger.info(message)
                                     log_message(message)
-
-                                    if time.time() - vehicle_detected["last_checked"] >= 5:
-                                        if vehicle_detected["detected"]:
-                                            vehicle_log_message = "Mobil terdeteksi."
-                                        else:
-                                            vehicle_log_message = "Tidak ada Mobil."
-                                        log_message(vehicle_log_message)
-                                        vehicle_detected["last_checked"] = time.time()
-
-                                    region_entry_times[region["name"]][
-                                        track_id] = current_time  # Reset the entry time for next interval
+                                    last_log_time = current_time
                         else:
-                            if track_id in region_entry_times[region["name"]]:
-                                del region_entry_times[region["name"]][track_id]
+                            start_time = None
 
+            # Draw regions and update frame annotations
             for region in counting_regions:
                 region_label = str(region["counts"])
                 region_color = region["region_color"]
@@ -111,15 +88,15 @@ def detect_pedestrian(weights, device, region_side, pejalan_kaki_detected, vehic
 
             time.sleep(0.03)  # To reduce CPU usage
 
-            for region in counting_regions:
-                region["counts"] = 0
-
             # Show frame in OpenCV window
             window_name = f"YOLOv8 Region Counter - {region_side}"
             cv2.imshow(window_name, frame)
-            cv2.setMouseCallback(window_name, mouse_callback)
+            cv2.setMouseCallback(window_name, mouse_callback, counting_regions)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
+
+            for region in counting_regions:
+                region["counts"] = 0
 
     except KeyboardInterrupt:
         logger.info("CTRL + C has been pressed")
@@ -127,8 +104,7 @@ def detect_pedestrian(weights, device, region_side, pejalan_kaki_detected, vehic
         videocapture.release()
         cv2.destroyAllWindows()
 
-
-def detect_vehicle(weights, device, vehicle_detected, log_message):
+def detect_vehicle(weights, device, vehicle_detected):
     model = YOLO(f"{weights}")
     model.to("cuda" if device == "0" else "cpu")
 
@@ -138,20 +114,18 @@ def detect_vehicle(weights, device, vehicle_detected, log_message):
         raise ValueError(f"Unable to open video source {source}")
 
     try:
+        last_log_time = time.time()
         while videocapture.isOpened():
             success, frame = videocapture.read()
             if not success:
                 break
 
-            # Flip frame vertically
             frame = cv2.flip(frame, -1)
 
-            with suppress_logging(logging.WARNING):
-                results = model.track(frame, persist=True)
-
+            results = model.track(frame, persist=True)
             annotator = Annotator(frame, line_width=2)
 
-            vehicle_detected["detected"] = False  # Reset detected flag
+            current_time = time.time()
 
             if results[0].boxes.id is not None:
                 boxes = results[0].boxes.xyxy.cpu().numpy()
@@ -162,7 +136,7 @@ def detect_vehicle(weights, device, vehicle_detected, log_message):
                     annotator.box_label(box, str(model.model.names[cls]), color=colors(cls, True))
                     bbox_center = ((box[0] + box[2]) / 2, (box[1] + box[3]) / 2)
 
-                    track = track_history[track_id]
+                    track = track_history_kiri[track_id] if cls == "kiri" else track_history_kanan[track_id]
                     track.append(bbox_center)
                     if len(track) > 60:
                         track.pop(0)
@@ -173,12 +147,16 @@ def detect_vehicle(weights, device, vehicle_detected, log_message):
 
                     vehicle_detected["detected"] = True
 
+                    if current_time - last_log_time >= 5:
+                        message = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Mobil terdeteksi."
+                        logger.info(message)
+                        log_message(message)
+                        last_log_time = current_time
+
             time.sleep(0.03)  # To reduce CPU usage
 
-            # Show frame in OpenCV window
             window_name = "YOLOv8 Vehicle Detection"
             cv2.imshow(window_name, frame)
-            cv2.setMouseCallback(window_name, mouse_callback)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
