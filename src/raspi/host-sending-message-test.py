@@ -4,7 +4,7 @@ from threading import Thread
 
 isProcessRun = False
 
-def send_command():
+def send_command(data):
     global isProcessRun
     if not isProcessRun:
         try:
@@ -12,7 +12,7 @@ def send_command():
             host = '192.168.2.14'  # IP Raspberry Pi
             port = 12345
             client_socket.connect((host, port))
-            client_socket.sendall("Terdeteksi Orang Di Penyebrangan".encode('utf-8'))
+            client_socket.sendall(data.encode('utf-8'))
             Thread(target=receive_response, args=(client_socket,)).start()
         except Exception as e:
             print(f"Error: {e}")
@@ -40,7 +40,11 @@ def receive_response(client_socket):
 
 app = tk.Tk()
 app.title("Traffic Control Simulator")
-button = tk.Button(app, text="Orang Menyebrang", command=send_command)
-button.pack(pady=20)
+
+btn_crossing_with_cars = tk.Button(app, text="Pejalan Kaki Menyebrang (Dengan Mobil)", command=lambda: send_command("Terdeteksi Orang Di Penyebrangan (Dengan Mobil)"))
+btn_crossing_with_cars.pack(pady=10)
+
+btn_crossing_without_cars = tk.Button(app, text="Pejalan Kaki Menyebrang (Tanpa Mobil)", command=lambda: send_command("Terdeteksi Orang Di Penyebrangan (Tanpa Mobil)"))
+btn_crossing_without_cars.pack(pady=10)
 
 app.mainloop()

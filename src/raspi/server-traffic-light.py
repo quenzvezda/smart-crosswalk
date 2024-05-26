@@ -20,13 +20,20 @@ def handle_client(client_socket, addr):
     try:
         print(f"Terhubung dengan {addr}")
         data = client_socket.recv(1024).decode('utf-8')
-        if data == "Terdeteksi Orang Di Penyebrangan":
+        if "Terdeteksi Orang Di Penyebrangan (Dengan Mobil)" in data:
             if crossing_flag.is_set():
                 send_response(client_socket, "Fungsi Pedestrian Sedang Berjalan")
             else:
                 send_response(client_socket, "Memulai Fungsi Pedestrian")
                 crossing_flag.set()
-                handle_pedestrian_crossing(client_socket, send_response, crossing_flag)
+                handle_pedestrian_crossing(client_socket, send_response, crossing_flag, 10, "sound/tunggu-10d.mp3")
+        elif "Terdeteksi Orang Di Penyebrangan (Tanpa Mobil)" in data:
+            if crossing_flag.is_set():
+                send_response(client_socket, "Fungsi Pedestrian Sedang Berjalan")
+            else:
+                send_response(client_socket, "Memulai Fungsi Pedestrian")
+                crossing_flag.set()
+                handle_pedestrian_crossing(client_socket, send_response, crossing_flag, 0, "sound/silakan.mp3")
     except Exception as e:
         print(f"Error handling client: {e}")
     finally:
