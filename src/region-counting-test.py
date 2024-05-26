@@ -1,7 +1,6 @@
 import argparse
 import signal
 import sys
-
 import cv2
 from pathlib import Path
 import numpy as np
@@ -10,9 +9,17 @@ from shapely.geometry.point import Point
 from collections import defaultdict
 from ultralytics import YOLO
 from ultralytics.utils.plotting import Annotator, colors
+import logging
+from contextlib import contextmanager
+from datetime import datetime, timedelta
+
+# Set logging level to WARNING to suppress detailed logs
+logging.getLogger("ultralytics").setLevel(logging.WARNING)
 
 # Global variable for tracking history and regions
 track_history = defaultdict(list)
+region_entry_times = defaultdict(lambda: defaultdict(datetime))
+
 counting_regions = [
     {
         "name": "YOLOv8 Rectangle Region",
@@ -23,6 +30,7 @@ counting_regions = [
         "text_color": (0, 0, 255),
     },
 ]
+
 
 def mouse_callback(event, x, y, flags, param):
     global current_region
@@ -52,15 +60,27 @@ def mouse_callback(event, x, y, flags, param):
         if current_region is not None and current_region["dragging"]:
             current_region["dragging"] = False
 
+
+@contextmanager
+def suppress_logging(level=logging.WARNING):
+    logger = logging.getLogger("ultralytics")
+    previous_level = logger.getEffectiveLevel()
+    logger.setLevel(level)
+    try:
+        yield
+    finally:
+        logger.setLevel(previous_level)
+
+
 def run(
-    weights="yolov8n.pt",
-    source="0",
-    device="cpu",
-    view_img=True,
-    classes=None,
-    line_thickness=2,
-    track_thickness=2,
-    region_thickness=2,
+        weights="yolov8n.pt",
+        source="0",
+        device="cpu",
+        view_img=True,
+        classes=None,
+        line_thickness=2,
+        track_thickness=2,
+        region_thickness=2,
 ):
     global videocapture
     if source.isdigit():
@@ -81,8 +101,12 @@ def run(
             if not success:
                 break
 
-            results = model.track(frame, persist=True, classes=classes)
+            with suppress_logging(logging.WARNING):
+                results = model.track(frame, persist=True, classes=classes)
+
             annotator = Annotator(frame, line_width=line_thickness)
+
+            current_time = datetime.now()
 
             if results[0].boxes.id is not None:
                 boxes = results[0].boxes.xyxy.cpu().numpy()
@@ -108,6 +132,15 @@ def run(
                     for region in counting_regions:
                         if region["polygon"].contains(Point(bbox_center)):
                             region["counts"] += 1
+                            if track_id not in region_entry_times[region["name"]]:
+                                region_entry_times[region["name"]][track_id] = current_time
+                            else:
+                                time_in_region = current_time - region_entry_times[region["name"]][track_id]
+                                if time_in_region >= timedelta(seconds=5):
+                                    print(f"Object {track_id} has been in {region['name']} for 5 seconds")
+                        else:
+                            if track_id in region_entry_times[region["name"]]:
+                                del region_entry_times[region["name"]][track_id]
 
             # Draw regions and update frame annotations
             for region in counting_regions:
@@ -137,10 +170,11 @@ def run(
             for region in counting_regions:
                 region["counts"] = 0
     except KeyboardInterrupt:
-        print("testr")
+        print("CTRL + C has been pressed")
     finally:
         videocapture.release()
         cv2.destroyAllWindows()
+
 
 def parse_opt():
     parser = argparse.ArgumentParser()
@@ -154,14 +188,17 @@ def parse_opt():
     parser.add_argument("--region-thickness", type=int, default=4, help="Region thickness")
     return parser.parse_args()
 
+
 def signal_handler(sig, frame):
     print("You pressed Ctrl+C!")
     videocapture.release()
     cv2.destroyAllWindows()
     sys.exit(0)
 
+
 def main(opt):
     run(**vars(opt))
+
 
 if __name__ == "__main__":
     opt = parse_opt()
