@@ -15,6 +15,7 @@ logger = logging.getLogger('detector')
 # Global variable for region entry times
 region_entry_times = defaultdict(lambda: defaultdict(datetime))
 
+
 @contextmanager
 def suppress_logging(level=logging.WARNING):
     logger = logging.getLogger("ultralytics")
@@ -25,7 +26,8 @@ def suppress_logging(level=logging.WARNING):
     finally:
         logger.setLevel(previous_level)
 
-def detect_pedestrian(weights, device, region_side, pejalan_kaki_detected, log_message):
+
+def detect_pedestrian(weights, device, region_side, pejalan_kaki_detected, vehicle_detected, log_message):
     model = YOLO(f"{weights}")
     model.to("cuda" if device == "0" else "cpu")
 
@@ -72,9 +74,21 @@ def detect_pedestrian(weights, device, region_side, pejalan_kaki_detected, log_m
                             else:
                                 time_in_region = current_time - region_entry_times[region["name"]][track_id]
                                 if time_in_region >= timedelta(seconds=5):
+                                    pejalan_kaki_detected[region_side] = True
                                     message = f"Pejalan kaki {track_id} terdeteksi di {region['name']} selama 5 detik."
                                     logger.info(message)
                                     log_message(message)
+
+                                    if time.time() - vehicle_detected["last_checked"] >= 5:
+                                        if vehicle_detected["detected"]:
+                                            vehicle_log_message = "Mobil terdeteksi."
+                                        else:
+                                            vehicle_log_message = "Tidak ada Mobil."
+                                        log_message(vehicle_log_message)
+                                        vehicle_detected["last_checked"] = time.time()
+
+                                    region_entry_times[region["name"]][
+                                        track_id] = current_time  # Reset the entry time for next interval
                         else:
                             if track_id in region_entry_times[region["name"]]:
                                 del region_entry_times[region["name"]][track_id]
@@ -118,7 +132,6 @@ def detect_vehicle(weights, device, vehicle_detected, log_message):
         raise ValueError(f"Unable to open video source {source}")
 
     try:
-        last_log_time = time.time()
         while videocapture.isOpened():
             success, frame = videocapture.read()
             if not success:
@@ -131,6 +144,8 @@ def detect_vehicle(weights, device, vehicle_detected, log_message):
                 results = model.track(frame, persist=True)
 
             annotator = Annotator(frame, line_width=2)
+
+            vehicle_detected["detected"] = False  # Reset detected flag
 
             if results[0].boxes.id is not None:
                 boxes = results[0].boxes.xyxy.cpu().numpy()
@@ -150,12 +165,7 @@ def detect_vehicle(weights, device, vehicle_detected, log_message):
                         points = np.array(track, dtype=np.int32)
                         cv2.polylines(frame, [points], isClosed=False, color=colors(cls, True), thickness=2)
 
-                    vehicle_detected = True
-                    if time.time() - last_log_time >= 2:  # Log every 2 seconds
-                        message = "Mobil terdeteksi."
-                        logger.info(message)
-                        log_message(message)
-                        last_log_time = time.time()
+                    vehicle_detected["detected"] = True
 
             time.sleep(0.03)  # To reduce CPU usage
 

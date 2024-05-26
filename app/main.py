@@ -10,8 +10,7 @@ log_queue = queue.Queue()
 
 # Global flags
 pejalan_kaki_detected = {"kiri": False, "kanan": False}
-vehicle_detected = False
-
+vehicle_detected = {"detected": False, "last_checked": time.time()}
 
 # Function to update the log
 def update_log(log_widget):
@@ -26,20 +25,16 @@ def update_log(log_widget):
             pass
         time.sleep(0.1)
 
-
 # Function to add log messages to the queue
 def log_message(message):
-    log_queue.put(message)
-
+    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+    log_queue.put(f"[{timestamp}]: {message}")
 
 # Function to start the pedestrian and vehicle detection threads
 def start_detection_threads(weights, device):
-    threading.Thread(target=detect_pedestrian,
-                     args=(weights, device, "kiri", pejalan_kaki_detected, log_message)).start()
-    threading.Thread(target=detect_pedestrian,
-                     args=(weights, device, "kanan", pejalan_kaki_detected, log_message)).start()
+    threading.Thread(target=detect_pedestrian, args=(weights, device, "kiri", pejalan_kaki_detected, vehicle_detected, log_message)).start()
+    threading.Thread(target=detect_pedestrian, args=(weights, device, "kanan", pejalan_kaki_detected, vehicle_detected, log_message)).start()
     threading.Thread(target=detect_vehicle, args=(weights, device, vehicle_detected, log_message)).start()
-
 
 # Tkinter GUI
 root = tk.Tk()
