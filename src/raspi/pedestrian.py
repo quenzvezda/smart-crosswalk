@@ -4,15 +4,21 @@ from playsound import playsound
 import threading
 from setup_led import pejalan_kaki_kiri, pejalan_kaki_kanan, mobil
 
+
 def play_audio(file_path):
     playsound(file_path)
 
-def handle_pedestrian_crossing(client_socket, send_response, crossing_flag, delay_before_crossing, audio_file):
+
+def handle_pedestrian_crossing(client_socket, send_response, crossing_flag, delay_before_crossing, initial_audio_file,
+                               crossing_audio_file):
     print("Orang terdeteksi, mengubah lampu menjadi merah")
-    # Memutar audio informasi di thread terpisah
-    audio_thread = threading.Thread(target=play_audio, args=(audio_file,))
-    audio_thread.start()
-    print("Suara diputar...")
+
+    # Memutar audio informasi awal di thread terpisah jika ada
+    if initial_audio_file:
+        audio_thread = threading.Thread(target=play_audio, args=(initial_audio_file,))
+        audio_thread.start()
+        print("Suara diputar: ", initial_audio_file)
+
     sleep(delay_before_crossing)
 
     # Lampu mobil kuning selama 2 detik
@@ -35,12 +41,16 @@ def handle_pedestrian_crossing(client_socket, send_response, crossing_flag, dela
     print("Lampu Mobil Merah, Pejalan Kaki Kuning")
     sleep(2)
 
-    # Lampu pejalan kaki hijau selama 10 detik
+    # Lampu pejalan kaki hijau selama 10 detik dan memutar audio silakan.mp3
     pejalan_kaki_kiri['kuning'].off()
     pejalan_kaki_kanan['kuning'].off()
     pejalan_kaki_kiri['hijau'].on()
     pejalan_kaki_kanan['hijau'].on()
     print("Lampu Mobil Merah, Pejalan Kaki Hijau")
+
+    # Memutar audio "silakan.mp3" saat lampu pejalan kaki hijau
+    crossing_audio_thread = threading.Thread(target=play_audio, args=(crossing_audio_file,))
+    crossing_audio_thread.start()
     sleep(10)
 
     # Lampu pejalan kaki kuning selama 2 detik
