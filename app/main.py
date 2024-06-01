@@ -16,20 +16,26 @@ def log_message(message):
 
 
 def central_log_and_check(pejalan_kaki_detected, vehicle_detected):
+    last_log_time = time.time()
     while True:
-        time.sleep(5)
-        total_orang = total_pejalan_kaki["kiri"] + total_pejalan_kaki["kanan"]
-        if total_orang > 0:
-            if vehicle_detected["detected"]:
-                message = f"Terdeteksi total [{total_orang} Orang] dan Mobil selama 5 detik."
-            else:
-                message = f"Terdeteksi total [{total_orang} Orang] selama 5 detik."
-            log_message(message)
-            with lock:
-                total_pejalan_kaki["kiri"] = 0
-                total_pejalan_kaki["kanan"] = 0
-            pejalan_kaki_detected["kiri"] = False
-            pejalan_kaki_detected["kanan"] = False
+        current_time = time.time()
+        elapsed_time = current_time - last_log_time
+
+        if elapsed_time >= 5:
+            total_orang = total_pejalan_kaki["kiri"] + total_pejalan_kaki["kanan"]
+            if total_orang > 0:
+                if vehicle_detected["detected"]:
+                    message = f"Terdeteksi total [{total_orang} Orang] dan Mobil selama 5 detik."
+                else:
+                    message = f"Terdeteksi total [{total_orang} Orang] selama 5 detik."
+                log_message(message)
+                with lock:
+                    total_pejalan_kaki["kiri"] = 0
+                    total_pejalan_kaki["kanan"] = 0
+                pejalan_kaki_detected["kiri"] = False
+                pejalan_kaki_detected["kanan"] = False
+            last_log_time = current_time
+        time.sleep(0.1)
 
 
 def start_detection_threads(weights, device):

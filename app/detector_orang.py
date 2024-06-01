@@ -27,7 +27,6 @@ def detect_pedestrian(weights, device, region_side, pejalan_kaki_detected, vehic
 
     try:
         start_time = None
-        last_log_time = time.time()
         while videocapture.isOpened():
             success, frame = videocapture.read()
             if not success:
@@ -67,17 +66,24 @@ def detect_pedestrian(weights, device, region_side, pejalan_kaki_detected, vehic
                                 start_time = current_time
                             elif current_time - start_time >= 5:
                                 pejalan_kaki_detected[region_side] = True
-                                if current_time - last_log_time >= 5:
-                                    # message = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Pejalan kaki {track_id} terdeteksi di {region['name']} selama 5 detik."
-                                    # log_message(message)
-                                    # logger.info(message)  # Also log to file
-                                    last_log_time = current_time
+                                # if current_time - last_log_time >= 5:
+                                #     # message = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Pejalan kaki {track_id} terdeteksi di {region['name']} selama 5 detik."
+                                #     # log_message(message)
+                                #     # logger.info(message)  # Also log to file
+                                #     last_log_time = current_time
                         else:
                             start_time = None
 
                 # Update total_pejalan_kaki based on current detections
                 with lock:
                     total_pejalan_kaki[region_side] = len(current_pejalan_kaki)
+                    # print(len(current_pejalan_kaki), time.time(), region_side)  # Log Real Time Object Counting
+
+            else:
+                # When no boxes are detected, set the count to 0
+                with lock:
+                    total_pejalan_kaki[region_side] = 0
+                    # print(0, time.time(), region_side)  # Log Real Time Object Counting
 
             for region in counting_regions:
                 region_label = str(region["counts"])
