@@ -8,7 +8,7 @@ from ultralytics.utils.plotting import Annotator, colors
 from region import counting_regions_kiri, counting_regions_kanan, track_history_kiri, track_history_kanan, \
     mouse_callback
 import logging
-from client import log_message
+# from client import log_message
 
 logger = logging.getLogger('detector')
 

@@ -1,54 +1,71 @@
 import socket
 import threading
-import time
 import logging
-import queue
+import time
 
 logger = logging.getLogger('client')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-# Create a queue for logging messages
-log_queue = queue.Queue()
-
+server_address = ('192.168.2.14', 60003)
 isProcessRun = False
+lock = threading.Lock()
+connected = False
+client_socket = None
+
+
+def connect_to_server():
+    global client_socket, connected
+    while not connected:
+        try:
+            client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            client_socket.connect(server_address)
+            connected = True
+            logger.info("Terhubung ke server")
+        except Exception as e:
+            logger.error(f"Gagal menghubungkan ke server: {e}")
+            time.sleep(5)  # Coba lagi setelah 5 detik
+
 
 def send_data_to_server(data):
+    global isProcessRun
+    with lock:
+        if isProcessRun:
+            logger.info("Fungsi Pedestrian Sedang Berjalan. Tidak Mengirim Pesan . . .")
+            return
     try:
-        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        host = '192.168.2.14'  # IP Raspberry Pi
-        port = 12345
-        client_socket.connect((host, port))
         client_socket.sendall(data.encode('utf-8'))
-        client_socket.close()
-        message = f"Mengirim data ke server: {data}"
-        logger.info(message)
-        log_message(message)
+        logger.info(f"Mengirim data ke server: {data}")
+        response = client_socket.recv(1024).decode('utf-8')
+        logger.info(f"Menerima Pesan dari Server: {response}")
+        if response == "Pedestrian Process Started":
+            with lock:
+                isProcessRun = True
+        elif response == "Pedestrian Process Finished":
+            with lock:
+                isProcessRun = False
     except Exception as e:
-        error_message = f"Error sending data to server: {e}"
-        logger.error(error_message)
-        log_message(error_message)
+        logger.error(f"Error sending data to server: {e}")
+        connect_to_server()
+
 
 def monitor_server_response():
-    global isProcessRun
+    global isProcessRun, connected
     while True:
-        time.sleep(1)  # adjust sleep time as necessary
+        time.sleep(1)
         if isProcessRun:
             try:
-                client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                host = '192.168.2.14'  # IP Raspberry Pi
-                port = 12345
-                client_socket.connect((host, port))
                 client_socket.sendall("Check Status".encode('utf-8'))
                 response = client_socket.recv(1024).decode('utf-8')
-                if response == "Fungsi Pedestrian Selesai":
-                    isProcessRun = False
-                    message = "Fungsi pedestrian selesai. Anda dapat mengirim perintah lagi."
-                    logger.info(message)
-                    log_message(message)
-                client_socket.close()
+                if response == "Pedestrian Process Finished":
+                    with lock:
+                        isProcessRun = False
+                    logger.info("Fungsi pedestrian selesai. Anda dapat mengirim perintah lagi.")
             except Exception as e:
-                error_message = f"Error checking server response: {e}"
-                logger.error(error_message)
-                log_message(error_message)
+                logger.error(f"Error checking server response: {e}")
+                connected = False
+                connect_to_server()
 
-def log_message(message):
-    log_queue.put(message)
+
+# Start the thread to monitor server response
+threading.Thread(target=monitor_server_response, daemon=True).start()
+connect_to_server()

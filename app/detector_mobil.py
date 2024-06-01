@@ -3,9 +3,9 @@ import time
 from ultralytics import YOLO
 from ultralytics.utils.plotting import Annotator, colors
 import logging
-from client import log_message
 
 logger = logging.getLogger('detector')
+
 
 def detect_vehicle(weights, device, vehicle_detected):
     model = YOLO(f"{weights}")
@@ -48,9 +48,11 @@ def detect_vehicle(weights, device, vehicle_detected):
         videocapture.release()
         cv2.destroyAllWindows()
 
+
 # Function to suppress YOLO logging
 from contextlib import contextmanager
 import logging
+
 
 @contextmanager
 def suppress_logging(level=logging.WARNING):
