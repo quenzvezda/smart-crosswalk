@@ -5,13 +5,15 @@ from collections import defaultdict
 from shapely.geometry import Point
 from ultralytics import YOLO
 from ultralytics.utils.plotting import Annotator, colors
-from region import counting_regions_kiri, counting_regions_kanan, track_history_kiri, track_history_kanan, mouse_callback
+from region import counting_regions_kiri, counting_regions_kanan, track_history_kiri, track_history_kanan, \
+    mouse_callback
 import logging
 from client import log_message
 
 logger = logging.getLogger('detector')
 
-def detect_pedestrian(weights, device, region_side, pejalan_kaki_detected, vehicle_detected):
+
+def detect_pedestrian(weights, device, region_side, pejalan_kaki_detected, vehicle_detected, total_pejalan_kaki, lock):
     model = YOLO(f"{weights}")
     model.to("cuda" if device == "0" else "cpu")
 
@@ -42,6 +44,8 @@ def detect_pedestrian(weights, device, region_side, pejalan_kaki_detected, vehic
                 track_ids = results[0].boxes.id.cpu().tolist()
                 clss = results[0].boxes.cls.cpu().tolist()
 
+                current_pejalan_kaki = set()
+
                 for box, track_id, cls in zip(boxes, track_ids, clss):
                     annotator.box_label(box, str(model.model.names[cls]), color=colors(cls, True))
                     bbox_center = ((box[0] + box[2]) / 2, (box[1] + box[3]) / 2)
@@ -57,24 +61,23 @@ def detect_pedestrian(weights, device, region_side, pejalan_kaki_detected, vehic
 
                     for region in counting_regions:
                         if region["polygon"].contains(Point(bbox_center)):
+                            current_pejalan_kaki.add(track_id)
                             region["counts"] += 1
                             if start_time is None:
                                 start_time = current_time
                             elif current_time - start_time >= 5:
                                 pejalan_kaki_detected[region_side] = True
                                 if current_time - last_log_time >= 5:
-                                    message = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Pejalan kaki {track_id} terdeteksi di {region['name']} selama 5 detik."
-                                    log_message(message)
-                                    logger.info(message)  # Also log to file
-                                    if vehicle_detected["detected"]:
-                                        vehicle_message = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Mobil terdeteksi."
-                                    else:
-                                        vehicle_message = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Tidak ada Mobil."
-                                    log_message(vehicle_message)
-                                    logger.info(vehicle_message)  # Also log to file
+                                    # message = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Pejalan kaki {track_id} terdeteksi di {region['name']} selama 5 detik."
+                                    # log_message(message)
+                                    # logger.info(message)  # Also log to file
                                     last_log_time = current_time
                         else:
                             start_time = None
+
+                # Update total_pejalan_kaki based on current detections
+                with lock:
+                    total_pejalan_kaki[region_side] = len(current_pejalan_kaki)
 
             for region in counting_regions:
                 region_label = str(region["counts"])
@@ -107,9 +110,11 @@ def detect_pedestrian(weights, device, region_side, pejalan_kaki_detected, vehic
         videocapture.release()
         cv2.destroyAllWindows()
 
+
 # Function to suppress YOLO logging
 from contextlib import contextmanager
 import logging
+
 
 @contextmanager
 def suppress_logging(level=logging.WARNING):
