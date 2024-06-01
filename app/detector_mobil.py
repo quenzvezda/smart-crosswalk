@@ -42,8 +42,6 @@ def detect_vehicle(weights, device, vehicle_detected):
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
-            time.sleep(0.03)  # To reduce CPU usage
-
     except KeyboardInterrupt:
         logger.info("CTRL + C has been pressed")
     finally:

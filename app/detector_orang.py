@@ -48,7 +48,7 @@ def detect_pedestrian(weights, device, region_side, pejalan_kaki_detected, vehic
 
                     track = track_history[track_id]
                     track.append(bbox_center)
-                    if len(track) > 60:
+                    if len(track) > 30:
                         track.pop(0)
 
                     if len(track) > 1:
@@ -91,8 +91,6 @@ def detect_pedestrian(weights, device, region_side, pejalan_kaki_detected, vehic
                 coords_text = "Coords: " + ', '.join([f"({int(x)}, {int(y)})" for x, y in polygon_coords])
                 cv2.putText(frame, coords_text, (10, frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
                             region_text_color, 1)
-
-            time.sleep(0.03)  # To reduce CPU usage
 
             window_name = f"YOLOv8 Region Counter - {region_side}"
             cv2.imshow(window_name, frame)
