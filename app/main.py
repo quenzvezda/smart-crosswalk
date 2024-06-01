@@ -16,14 +16,18 @@ def log_message(message):
 
 
 def central_log_and_check(pejalan_kaki_detected, vehicle_detected):
-    last_log_time = time.time()
+    last_log_time = None
     while True:
-        current_time = time.time()
-        elapsed_time = current_time - last_log_time
-
-        if elapsed_time >= 5:
+        with lock:
             total_orang = total_pejalan_kaki["kiri"] + total_pejalan_kaki["kanan"]
-            if total_orang > 0:
+
+        if total_orang > 0:
+            if last_log_time is None:
+                last_log_time = time.time()
+            current_time = time.time()
+            elapsed_time = current_time - last_log_time
+
+            if elapsed_time >= 5:
                 if vehicle_detected["detected"]:
                     message = f"Terdeteksi total [{total_orang} Orang] dan Mobil selama 5 detik."
                 else:
@@ -34,7 +38,10 @@ def central_log_and_check(pejalan_kaki_detected, vehicle_detected):
                     total_pejalan_kaki["kanan"] = 0
                 pejalan_kaki_detected["kiri"] = False
                 pejalan_kaki_detected["kanan"] = False
-            last_log_time = current_time
+                last_log_time = None
+        else:
+            last_log_time = None
+
         time.sleep(0.1)
 
 
