@@ -6,7 +6,6 @@ import logging
 
 logger = logging.getLogger('detector')
 
-
 def detect_vehicle(weights, device, vehicle_detected):
     model = YOLO(f"{weights}")
     model.to("cuda" if device == "0" else "cpu")
@@ -28,13 +27,17 @@ def detect_vehicle(weights, device, vehicle_detected):
                 results = model.track(frame, persist=True)
             annotator = Annotator(frame, line_width=2)
 
-            if results[0].boxes.id is not None:
-                vehicle_detected["detected"] = True
-            else:
-                vehicle_detected["detected"] = False
+            vehicle_detected["detected"] = False  # Default to False, set to True if any vehicle detected
 
-            for box in results[0].boxes.xyxy:
-                annotator.box_label(box, "Mobil", color=colors(2, True))
+            for result in results:
+                for box in result.boxes:
+                    cls = int(box.cls[0])  # Class index
+                    xyxy = box.xyxy[0]  # Bounding box coordinates
+                    if cls == 0:  # Assuming class '0' is 'mobil'
+                        vehicle_detected["detected"] = True
+                        annotator.box_label(xyxy, "mobil", color=colors(2, True))
+                    else:
+                        annotator.box_label(xyxy, "orang", color=colors(1, True))
 
             annotated_frame = annotator.result()
             window_name = "YOLOv8 Vehicle Detection"
@@ -48,11 +51,9 @@ def detect_vehicle(weights, device, vehicle_detected):
         videocapture.release()
         cv2.destroyAllWindows()
 
-
 # Function to suppress YOLO logging
 from contextlib import contextmanager
 import logging
-
 
 @contextmanager
 def suppress_logging(level=logging.WARNING):
