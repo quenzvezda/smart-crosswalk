@@ -3,7 +3,8 @@ import tensorflow as tf
 import numpy as np
 
 # Load the pretrained TensorFlow model
-model_path = '../models/ssd-v1/saved_model'
+# model_path = '../models/ssd-v1/saved_model'
+model_path = '../models/ssd-new-dataset'
 loaded_model = tf.saved_model.load(model_path)
 infer = loaded_model.signatures['serving_default']
 
@@ -11,7 +12,7 @@ infer = loaded_model.signatures['serving_default']
 class_labels = {1: 'mobil', 2: 'pejalan kaki'}
 
 # Initialize webcam
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(1)
 
 try:
     while True:
@@ -22,7 +23,7 @@ try:
 
         # Preprocess the frame
         # Resize the frame to fit model input
-        resized_frame = cv2.resize(frame, (300, 300))
+        resized_frame = cv2.resize(frame, (640, 640))
         # Convert the image to RGB
         rgb_frame = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2RGB)
         # Normalize pixel values to the [0, 255] range and convert to uint8
