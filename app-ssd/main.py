@@ -1,70 +1,45 @@
+import cv2
 import threading
-import time
-import logging
-from detector_orang import detect_pedestrian, logger
-from detector_mobil import detect_vehicle
-from client import send_data_to_server, isProcessRun, lock, monitor_server_response
+from camera_processor import process_frame
+from utils import is_within_roi, calculate_overlap
+import tensorflow as tf
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-total_pejalan_kaki = {"kiri": 0, "kanan": 0}
-pejalan_kaki_detected = {"kiri": False, "kanan": False}
-vehicle_detected = {"detected": False}
+# Define the ROIs for each camera (example coordinates, you might need to adjust them)
+rois = {
+    1: [0.1, 0.1, 0.5, 0.5],  # ymin, xmin, ymax, xmax
+    2: [0.2, 0.2, 0.6, 0.6]
+}
 
 
-def log_message(message):
-    logger.info(message)
+def camera_thread(camera_index, infer):
+    cap = cv2.VideoCapture(camera_index)
+    roi = rois.get(camera_index, None)
 
-
-def central_log_and_check(pejalan_kaki_detected, vehicle_detected):
-    last_log_time = None
     while True:
-        with lock:
-            total_orang = total_pejalan_kaki["kiri"] + total_pejalan_kaki["kanan"]
-            process_running = isProcessRun
+        ret, frame = cap.read()
+        if not ret:
+            break
+        frame = process_frame(frame, infer, {1: 'mobil', 2: 'orang'}, roi)
+        cv2.imshow(f'Camera {camera_index}', frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
 
-        if total_orang > 0:
-            if last_log_time is None:
-                last_log_time = time.time()
-            current_time = time.time()
-            elapsed_time = current_time - last_log_time
-
-            if elapsed_time >= 5:
-                if process_running:
-                    message = f"Fungsi Pedestrian Sedang Berjalan. Tidak Mengirim Pesan . . ."
-                    log_message(message)
-                else:
-                    if vehicle_detected["detected"]:
-                        message = f"Terdeteksi total [{total_orang} Orang] dan Mobil selama 5 detik."
-                        send_data_to_server("Terdeteksi Orang Di Penyebrangan (Dengan Mobil)")
-                    else:
-                        message = f"Terdeteksi total [{total_orang} Orang] selama 5 detik."
-                        send_data_to_server("Terdeteksi Orang Di Penyebrangan (Tanpa Mobil)")
-                    log_message(message)
-                with lock:
-                    total_pejalan_kaki["kiri"] = 0
-                    total_pejalan_kaki["kanan"] = 0
-                    pejalan_kaki_detected["kiri"] = False
-                    pejalan_kaki_detected["kanan"] = False
-                last_log_time = None
-        else:
-            last_log_time = None
-
-        time.sleep(0.1)
+    cap.release()
+    cv2.destroyAllWindows()
 
 
-def start_detection_threads(weights, device):
-    threading.Thread(target=detect_pedestrian, args=(weights, device, "kiri", pejalan_kaki_detected, vehicle_detected, total_pejalan_kaki, lock)).start()
-    threading.Thread(target=detect_pedestrian, args=(weights, device, "kanan", pejalan_kaki_detected, vehicle_detected, total_pejalan_kaki, lock)).start()
-    threading.Thread(target=detect_vehicle, args=(weights, device, vehicle_detected)).start()
-    threading.Thread(target=central_log_and_check, args=(pejalan_kaki_detected, vehicle_detected)).start()
+# Define your TensorFlow model here
+model_path = '../models/ssd-new-dataset'
+loaded_model = tf.saved_model.load(model_path)
+infer = loaded_model.signatures['serving_default']
 
+# Start threads for each camera
+threads = []
+for index in range(3):  # Adjust number of cameras here
+    thread = threading.Thread(target=camera_thread, args=(index, infer))
+    thread.start()
+    threads.append(thread)
 
-# Start detection threads
-weights = "../models/trisakti-yolov8m-roboflow.pt"
-device = "0"
-start_detection_threads(weights, device)
-
-# Start the thread to monitor server response
-threading.Thread(target=monitor_server_response, daemon=True).start()
+# Wait for all threads to finish
+for thread in threads:
+    thread.join()
