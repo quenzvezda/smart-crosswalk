@@ -18,15 +18,12 @@ def process_frame(frame, infer, class_labels, roi=None):
     scores = output_dict['detection_scores'][0].numpy()
     classes = output_dict['detection_classes'][0].numpy()
     count_people_in_roi = 0
+    vehicle_detected = False
 
     for i in range(len(scores)):
         if scores[i] > 0.5:
             box = boxes[i]
             class_id = int(classes[i])
-            if class_labels[class_id] == "orang" and roi:
-                if calculate_overlap(box, roi) > 0.5:
-                    count_people_in_roi += 1
-
             label = class_labels.get(class_id, 'Unknown')
             score = round(scores[i] * 100, 2)
             (left, right, top, bottom) = (box[1] * frame.shape[1], box[3] * frame.shape[1],
@@ -36,15 +33,24 @@ def process_frame(frame, infer, class_labels, roi=None):
             frame = cv2.putText(frame, label_text, (int(left), int(top - 10)), cv2.FONT_HERSHEY_SIMPLEX,
                                 0.5, (255, 255, 255), 2)
 
+            # Count people in ROI if applicable
+            if label == 'orang' and roi:
+                if calculate_overlap(box, roi) > 0.5:
+                    count_people_in_roi += 1
+
+            # Check for vehicle detection
+            if label == 'mobil':
+                vehicle_detected = True
+
     # Draw ROI and display count and coordinates if ROI is defined
     if roi:
         pt1 = (int(roi[1] * frame.shape[1]), int(roi[0] * frame.shape[0]))
         pt2 = (int(roi[3] * frame.shape[1]), int(roi[2] * frame.shape[0]))
-        frame = cv2.rectangle(frame, pt1, pt2, (0, 255, 255), 2)
+        frame = cv2.rectangle(frame, pt1, pt2, (0, 255, 255), 2)  # Change color here to yellow
         frame = cv2.putText(frame, f"Count: {count_people_in_roi}", (pt1[0], pt1[1] - 10), cv2.FONT_HERSHEY_SIMPLEX,
-                            0.5, (0, 0, 255), 2)
-        coord_text = f"(xmin:{roi[1]:.2f}, ymin:{roi[0]:.2f}), (xmax:{roi[3]:.2f}, ymax:{roi[2]:.2f})"
+                            0.5, (0, 255, 255), 2)  # Optionally change text color to yellow
+        coord_text = f"({roi[1]:.2f}, {roi[0]:.2f}), ({roi[3]:.2f}, {roi[2]:.2f})"
         frame = cv2.putText(frame, coord_text, (pt1[0], frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                            (0, 0, 255), 2)
+                            (0, 255, 255), 2)  # Optionally change text color to yellow
 
-    return frame
+    return frame, count_people_in_roi, vehicle_detected
