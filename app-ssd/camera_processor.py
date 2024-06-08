@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 from utils import is_within_roi, calculate_overlap
 
+
 def process_frame(frame, infer, class_labels, roi=None):
     # Preprocessing
     resized_frame = cv2.resize(frame, (640, 640))
@@ -35,12 +36,15 @@ def process_frame(frame, infer, class_labels, roi=None):
             frame = cv2.putText(frame, label_text, (int(left), int(top - 10)), cv2.FONT_HERSHEY_SIMPLEX,
                                 0.5, (255, 255, 255), 2)
 
-    # Draw ROI if it exists
+    # Draw ROI and display count and coordinates if ROI is defined
     if roi:
         pt1 = (int(roi[1] * frame.shape[1]), int(roi[0] * frame.shape[0]))
         pt2 = (int(roi[3] * frame.shape[1]), int(roi[2] * frame.shape[0]))
-        frame = cv2.rectangle(frame, pt1, pt2, (255, 0, 0), 2)
+        frame = cv2.rectangle(frame, pt1, pt2, (0, 255, 255), 2)
         frame = cv2.putText(frame, f"Count: {count_people_in_roi}", (pt1[0], pt1[1] - 10), cv2.FONT_HERSHEY_SIMPLEX,
-                            0.5, (255, 0, 0), 2)
+                            0.5, (0, 0, 255), 2)
+        coord_text = f"(xmin:{roi[1]:.2f}, ymin:{roi[0]:.2f}), (xmax:{roi[3]:.2f}, ymax:{roi[2]:.2f})"
+        frame = cv2.putText(frame, coord_text, (pt1[0], frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                            (0, 0, 255), 2)
 
     return frame

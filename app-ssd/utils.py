@@ -1,5 +1,3 @@
-import numpy as np
-
 def is_within_roi(box, roi):
     """
     Determine if the center of a box is within the specified ROI.
@@ -7,6 +5,7 @@ def is_within_roi(box, roi):
     """
     box_center = ((box[2] + box[0]) / 2, (box[3] + box[1]) / 2)
     return roi[0] <= box_center[0] <= roi[2] and roi[1] <= box_center[1] <= roi[3]
+
 
 def calculate_overlap(box, roi):
     """
