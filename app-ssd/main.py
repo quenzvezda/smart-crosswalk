@@ -1,3 +1,4 @@
+import datetime
 import time
 import cv2
 import threading
@@ -61,10 +62,12 @@ def central_log():
 
         current_time = time.time()
         if total_orang > 0 and (current_time - last_log_time) >= 5:
+            now = datetime.datetime.now()
+            timestamp = now.strftime("[%H:%M:%S.%f]")[:-3]  # Format to include only up to milliseconds
             if current_vehicle_detected:
-                print(f"Terdeteksi [{total_orang} Orang] dan Mobil selama 5 detik.")
+                print(f"{timestamp}] Terdeteksi [{total_orang} Orang] dan Mobil selama 5 detik.")
             else:
-                print(f"Terdeteksi [{total_orang} Orang].")
+                print(f"{timestamp}] Terdeteksi [{total_orang} Orang].")
             last_log_time = current_time
         elif total_orang == 0:
             last_log_time = current_time  # Reset timer if no people are detected
