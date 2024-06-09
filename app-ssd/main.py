@@ -7,6 +7,7 @@ import tensorflow as tf
 
 from camera_processor import process_frame
 from mouse_controller import MouseController
+from client import ServerConnection
 
 # Mapping of camera indexes to their roles
 camera_roles = {
@@ -14,6 +15,11 @@ camera_roles = {
     1: 'left',     # Kamera orang kiri
     2: 'right'     # Kamera orang kanan
 }
+
+# Setup server connection
+server = ServerConnection('192.168.2.14', 60003)
+server.connect()
+server.start_receiving_thread()
 
 # Index yang harus dibalik
 index_to_flip = 0
@@ -26,6 +32,8 @@ mouse_controller.setup_roi(2, [0.15, 0.30, 0.61, 0.65])  # ymin, xmin, ymax, xma
 total_orang_kiri = 0
 total_orang_kanan = 0
 vehicle_detected = False
+global is_pedestrian_run
+is_pedestrian_run = server.is_pedestrian_running
 
 # Initialize lock
 lock = threading.Lock()
@@ -76,9 +84,13 @@ def central_log():
         if total_orang > 0 and (current_time - last_log_time) >= 5:
             now = datetime.datetime.now()
             timestamp = now.strftime("[%H:%M:%S.%f]")[:-3]  # Format to include only up to milliseconds
-            if current_vehicle_detected:
+            if server.is_pedestrian_running:
+                print(f"{timestamp}] Pedestrian berjalan, tidak mengirim data ke server.")
+            elif current_vehicle_detected:
+                server.send_data("Terdeteksi Orang Di Penyebrangan (Dengan Mobil)")
                 print(f"{timestamp}] Terdeteksi [{total_orang} Orang] dan Mobil selama 5 detik.")
             else:
+                server.send_data("Terdeteksi Orang Di Penyebrangan (Tanpa Mobil)")
                 print(f"{timestamp}] Terdeteksi [{total_orang} Orang].")
             last_log_time = current_time
         elif total_orang == 0:
