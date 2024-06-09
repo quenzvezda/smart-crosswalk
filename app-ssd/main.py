@@ -1,11 +1,19 @@
 import datetime
-import time
-import cv2
 import threading
-from camera_processor import process_frame
-from utils import is_within_roi, calculate_overlap
+import time
+
+import cv2
 import tensorflow as tf
+
+from camera_processor import process_frame
 from mouse_controller import MouseController
+
+# List of camera indexes, you can change this as needed
+# Order: [Webcam Mobil, Webcam Orang Kiri, Webcam Orang Kanan]
+camera_indexes = [0, 1, 2]  # Change this list to match the camera indexes
+
+# Index yang harus dibalik
+index_to_flip = 0  # Kamera dengan index 2 adalah kamera mobil
 
 mouse_controller = MouseController()
 mouse_controller.setup_roi(1, [0.25, 0.26, 0.73, 0.63])  # ymin, xmin, ymax, xmax for camera 1
@@ -20,7 +28,7 @@ vehicle_detected = False
 lock = threading.Lock()
 
 
-def camera_thread(camera_index, infer, mouse_controller):
+def camera_thread(camera_index, infer, mouse_controller, flip=False):
     global total_orang_kiri, total_orang_kanan, vehicle_detected
     cap = cv2.VideoCapture(camera_index)
     cv2.namedWindow(f'Camera {camera_index}')
@@ -31,6 +39,8 @@ def camera_thread(camera_index, infer, mouse_controller):
         ret, frame = cap.read()
         if not ret:
             break
+        if flip:
+            frame = cv2.flip(frame, -1)
         roi = mouse_controller.get_roi(camera_index)
         frame, count_people_in_roi, vehicle_detected_in_frame = process_frame(frame, infer, {1: 'mobil', 2: 'orang'},
                                                                               roi)
@@ -79,10 +89,11 @@ model_path = '../models/ssd-new-dataset'
 loaded_model = tf.saved_model.load(model_path)
 infer = loaded_model.signatures['serving_default']
 
-# Start threads for each camera
+# Start threads for each camera using the list of camera indexes
 threads = []
-for index in range(3):  # Adjust number of cameras here
-    thread = threading.Thread(target=camera_thread, args=(index, infer, mouse_controller))
+for index in camera_indexes:
+    flip = (index == index_to_flip)
+    thread = threading.Thread(target=camera_thread, args=(index, infer, mouse_controller, flip))
     thread.start()
     threads.append(thread)
 
