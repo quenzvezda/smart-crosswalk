@@ -1,10 +1,8 @@
 import datetime
 import threading
 import time
-
 import cv2
 import tensorflow as tf
-
 from camera_processor import process_frame
 from mouse_controller import MouseController
 from client import ServerConnection
@@ -53,7 +51,8 @@ def camera_thread(camera_index, infer, mouse_controller, flip=False):
         if flip:
             frame = cv2.flip(frame, -1)
         roi = mouse_controller.get_roi(camera_index)
-        frame, count_people_in_roi, vehicle_detected_in_frame = process_frame(frame, infer, {1: 'mobil', 2: 'orang'}, roi)
+        frame, count_people_in_roi, vehicle_detected_in_frame = process_frame(frame, infer, {1: 'mobil', 2: 'orang'},
+                                                                              roi)
 
         # Update global variables with lock
         with lock:
@@ -87,10 +86,10 @@ def central_log():
             if server.is_pedestrian_running:
                 print(f"{timestamp}] Pedestrian berjalan, tidak mengirim data ke server.")
             elif current_vehicle_detected:
-                server.send_data("Terdeteksi Orang Di Penyebrangan (Dengan Mobil)")
+                server.send_data(f"Terdeteksi {total_orang} Orang Di Penyebrangan (Dengan Mobil)")
                 print(f"{timestamp}] Terdeteksi [{total_orang} Orang] dan Mobil selama 5 detik.")
             else:
-                server.send_data("Terdeteksi Orang Di Penyebrangan (Tanpa Mobil)")
+                server.send_data(f"Terdeteksi {total_orang} Orang Di Penyebrangan (Tanpa Mobil)")
                 print(f"{timestamp}] Terdeteksi [{total_orang} Orang].")
             last_log_time = current_time
         elif total_orang == 0:

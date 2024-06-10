@@ -37,10 +37,10 @@ def central_log_and_check(pejalan_kaki_detected, vehicle_detected):
                 else:
                     if vehicle_detected["detected"]:
                         message = f"Terdeteksi total [{total_orang} Orang] dan Mobil selama 5 detik."
-                        send_data_to_server("Terdeteksi Orang Di Penyebrangan (Dengan Mobil)")
+                        send_data_to_server(f"Terdeteksi {total_orang} Orang Di Penyebrangan (Dengan Mobil)")
                     else:
                         message = f"Terdeteksi total [{total_orang} Orang] selama 5 detik."
-                        send_data_to_server("Terdeteksi Orang Di Penyebrangan (Tanpa Mobil)")
+                        send_data_to_server(f"Terdeteksi {total_orang} Orang Di Penyebrangan (Tanpa Mobil)")
                     log_message(message)
                 with lock:
                     total_pejalan_kaki["kiri"] = 0
@@ -55,8 +55,10 @@ def central_log_and_check(pejalan_kaki_detected, vehicle_detected):
 
 
 def start_detection_threads(weights, device):
-    threading.Thread(target=detect_pedestrian, args=(weights, device, "kiri", pejalan_kaki_detected, vehicle_detected, total_pejalan_kaki, lock)).start()
-    threading.Thread(target=detect_pedestrian, args=(weights, device, "kanan", pejalan_kaki_detected, vehicle_detected, total_pejalan_kaki, lock)).start()
+    threading.Thread(target=detect_pedestrian, args=(
+        weights, device, "kiri", pejalan_kaki_detected, vehicle_detected, total_pejalan_kaki, lock)).start()
+    threading.Thread(target=detect_pedestrian, args=(
+        weights, device, "kanan", pejalan_kaki_detected, vehicle_detected, total_pejalan_kaki, lock)).start()
     threading.Thread(target=detect_vehicle, args=(weights, device, vehicle_detected)).start()
     threading.Thread(target=central_log_and_check, args=(pejalan_kaki_detected, vehicle_detected)).start()
 
