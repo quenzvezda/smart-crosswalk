@@ -77,7 +77,7 @@ def cleanup():
 
 
 # Inisialisasi socket server
-start_server()
+# start_server()
 
 # Jalankan siklus lampu lalu lintas
 traffic_light_cycle()
