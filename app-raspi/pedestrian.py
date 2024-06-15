@@ -10,13 +10,15 @@ logger = logging.getLogger('pedestrian')
 def play_audio(file_path):
     playsound(file_path)
 
+
 def print_status_with_countdown(message, countdown):
     for i in range(countdown, 0, -1):
         logger.info(f"{message} dalam waktu {i} detik")
         sleep(1)
 
+
 def handle_pedestrian_crossing(client_socket, crossing_flag, delay_before_crossing, jumlah_orang):
-    logger.info("Orang terdeteksi, mengubah lampu menjadi merah")
+    #logger.info("Orang terdeteksi, mengubah lampu menjadi merah")
 
     # Play the initial waiting audio
     initial_audio_thread = threading.Thread(target=play_audio, args=("sound/mohon-tunggu.mp3",))

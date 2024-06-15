@@ -84,13 +84,13 @@ def central_log():
             now = datetime.datetime.now()
             timestamp = now.strftime("[%H:%M:%S.%f]")[:-3]  # Format to include only up to milliseconds
             if server.is_pedestrian_running:
-                print(f"{timestamp}] Pedestrian berjalan, tidak mengirim data ke server.")
+                print(f"{timestamp}] Siklus lampu sedang berjalan berjalan, tidak mengirim data ke server.")
             elif current_vehicle_detected:
                 server.send_data(f"Terdeteksi {total_orang} Orang Di Penyebrangan (Dengan Mobil)")
-                print(f"{timestamp}] Terdeteksi [{total_orang} Orang] dan Mobil selama 5 detik.")
+                print(f"{timestamp}] Terdeteksi [{total_orang} Orang ({total_orang_kiri} Cam Kiri - {total_orang_kanan} Cam Kanan)] (Dengan Mobil) selama 5 detik.")
             else:
                 server.send_data(f"Terdeteksi {total_orang} Orang Di Penyebrangan (Tanpa Mobil)")
-                print(f"{timestamp}] Terdeteksi [{total_orang} Orang].")
+                print(f"{timestamp}] Terdeteksi [{total_orang} Orang ({total_orang_kiri} Cam Kiri - {total_orang_kanan} Cam Kanan)] (Tanpa Mobil) selama 5 detik.")
             last_log_time = current_time
         elif total_orang == 0:
             last_log_time = current_time  # Reset timer if no people are detected

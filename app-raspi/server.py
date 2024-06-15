@@ -11,6 +11,7 @@ crossing_flag = threading.Event()
 lock = threading.Lock()
 server_socket = None
 
+
 def start_server():
     global server_socket
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -19,6 +20,7 @@ def start_server():
     server_socket.bind((host, port))
     server_socket.listen(1)  # Dapat menangani hingga 1 koneksi dalam antrian
     logger.info("Menunggu koneksi dari laptop/desktop...")
+
 
 def traffic_light_cycle():
     try:
@@ -35,6 +37,7 @@ def traffic_light_cycle():
     except KeyboardInterrupt:
         cleanup()
 
+
 def handle_client(client_socket):
     global crossing_flag
     try:
@@ -50,10 +53,11 @@ def handle_client(client_socket):
 
                     if ada_mobil:
                         delay_before_crossing = 10
-                        logger.info("Memulai Fungsi Pedestrian (Dengan Mobil)")
+                        logger.info("Terdeteksi {} Orang Dan (Mobil), Memulai Fungsi Pedestrian".format(jumlah_orang))
                     else:
                         delay_before_crossing = 5
-                        logger.info("Memulai Fungsi Pedestrian (Tanpa Mobil)")
+                        logger.info(
+                            "Terdeteksi {} Orang Dan (Tanpa Mobil), Memulai Fungsi Pedestrian".format(jumlah_orang))
 
                     crossing_flag.set()
                     client_socket.sendall("Pedestrian Process Started".encode('utf-8'))
@@ -65,6 +69,7 @@ def handle_client(client_socket):
     finally:
         client_socket.close()
 
+
 def cleanup():
     for led in mobil.values():
         led.close()
@@ -74,6 +79,7 @@ def cleanup():
         led.close()
     server_socket.close()
     logger.info("Program dihentikan, pin GPIO dibersihkan.")
+
 
 # Jalankan siklus lampu lalu lintas
 traffic_light_cycle()

@@ -1,4 +1,5 @@
 # server_communication.py
+import datetime
 import socket
 import threading
 
@@ -33,6 +34,9 @@ class ServerConnection:
             try:
                 data = self.socket.recv(1024).decode('utf-8')
                 if "Pedestrian Process Finished" in data:
+                    now = datetime.datetime.now()
+                    timestamp = now.strftime("[%H:%M:%S.%f]")[:-3]
+                    print(f"{timestamp}] Siklus lampu selesai. Anda dapat mengirim perintah lagi.")
                     self.is_pedestrian_running = False
                 elif "Pedestrian Process Started" in data:
                     self.is_pedestrian_running = True

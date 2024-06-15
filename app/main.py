@@ -22,6 +22,8 @@ def central_log_and_check(pejalan_kaki_detected, vehicle_detected):
     while True:
         with lock:
             total_orang = total_pejalan_kaki["kiri"] + total_pejalan_kaki["kanan"]
+            orang_kiri = total_pejalan_kaki["kiri"]
+            orang_kanan = total_pejalan_kaki["kanan"]
             process_running = isProcessRun
 
         if total_orang > 0:
@@ -32,14 +34,14 @@ def central_log_and_check(pejalan_kaki_detected, vehicle_detected):
 
             if elapsed_time >= 5:
                 if process_running:
-                    message = f"Fungsi Pedestrian Sedang Berjalan. Tidak Mengirim Pesan . . ."
+                    message = f"Siklus lampu sedang berjalan berjalan, tidak mengirim data ke server."
                     log_message(message)
                 else:
                     if vehicle_detected["detected"]:
-                        message = f"Terdeteksi total [{total_orang} Orang] dan Mobil selama 5 detik."
+                        message = f"Terdeteksi [{total_orang} Orang ({orang_kiri} Cam Kiri - {orang_kanan} Cam Kanan)] (Dengan Mobil) selama 5 detik."
                         send_data_to_server(f"Terdeteksi {total_orang} Orang Di Penyebrangan (Dengan Mobil)")
                     else:
-                        message = f"Terdeteksi total [{total_orang} Orang] selama 5 detik."
+                        message = f"Terdeteksi [{total_orang} Orang ({orang_kiri} Cam Kiri - {orang_kanan} Cam Kanan)] (Tanpa Mobil) selama 5 detik."
                         send_data_to_server(f"Terdeteksi {total_orang} Orang Di Penyebrangan (Tanpa Mobil)")
                     log_message(message)
                 with lock:

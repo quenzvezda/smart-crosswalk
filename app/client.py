@@ -30,7 +30,7 @@ def send_data_to_server(data):
     global isProcessRun
     with lock:
         if isProcessRun:
-            logger.info("Fungsi Pedestrian Sedang Berjalan. Tidak Mengirim Pesan . . .")
+            logger.info("Siklus lampu sedang berjalan berjalan, tidak mengirim data ke server.")
             return
     try:
         client_socket.sendall(data.encode('utf-8'))
@@ -59,7 +59,7 @@ def monitor_server_response():
                 if response == "Pedestrian Process Finished":
                     with lock:
                         isProcessRun = False
-                    logger.info("Fungsi pedestrian selesai. Anda dapat mengirim perintah lagi.")
+                    logger.info("Siklus lampu selesai. Anda dapat mengirim perintah lagi.")
             except Exception as e:
                 logger.error(f"Error checking server response: {e}")
                 connected = False
