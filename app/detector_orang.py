@@ -8,7 +8,6 @@ from ultralytics.utils.plotting import Annotator, colors
 from region import counting_regions_kiri, counting_regions_kanan, track_history_kiri, track_history_kanan, \
     mouse_callback
 import logging
-# from client import log_message
 
 logger = logging.getLogger('detector')
 
@@ -42,11 +41,13 @@ def detect_pedestrian(weights, device, region_side, pejalan_kaki_detected, vehic
                 boxes = results[0].boxes.xyxy.cpu().numpy()
                 track_ids = results[0].boxes.id.cpu().tolist()
                 clss = results[0].boxes.cls.cpu().tolist()
+                confs = results[0].boxes.conf.cpu().tolist()
 
                 current_pejalan_kaki = set()
 
-                for box, track_id, cls in zip(boxes, track_ids, clss):
-                    annotator.box_label(box, str(model.model.names[cls]), color=colors(cls, True))
+                for box, track_id, cls, conf in zip(boxes, track_ids, clss, confs):
+                    label = f"{model.model.names[cls]} {conf:.2f}"
+                    annotator.box_label(box, label, color=colors(cls, True))
                     bbox_center = ((box[0] + box[2]) / 2, (box[1] + box[3]) / 2)
 
                     track = track_history[track_id]
@@ -66,24 +67,15 @@ def detect_pedestrian(weights, device, region_side, pejalan_kaki_detected, vehic
                                 start_time = current_time
                             elif current_time - start_time >= 5:
                                 pejalan_kaki_detected[region_side] = True
-                                # if current_time - last_log_time >= 5:
-                                #     # message = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Pejalan kaki {track_id} terdeteksi di {region['name']} selama 5 detik."
-                                #     # log_message(message)
-                                #     # logger.info(message)  # Also log to file
-                                #     last_log_time = current_time
-                        else:
-                            start_time = None
 
                 # Update total_pejalan_kaki based on current detections
                 with lock:
                     total_pejalan_kaki[region_side] = len(current_pejalan_kaki)
-                    # print(len(current_pejalan_kaki), time.time(), region_side)  # Log Real Time Object Counting
 
             else:
                 # When no boxes are detected, set the count to 0
                 with lock:
                     total_pejalan_kaki[region_side] = 0
-                    # print(0, time.time(), region_side)  # Log Real Time Object Counting
 
             for region in counting_regions:
                 region_label = str(region["counts"])

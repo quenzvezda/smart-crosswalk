@@ -15,7 +15,7 @@ camera_roles = {
 }
 
 # Setup server connection
-server = ServerConnection('192.168.2.14', 60003)
+server = ServerConnection('192.168.43.160', 60003)
 server.connect()
 server.start_receiving_thread()
 

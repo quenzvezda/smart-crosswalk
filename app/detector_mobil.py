@@ -33,11 +33,13 @@ def detect_vehicle(weights, device, vehicle_detected):
                 for box in result.boxes:
                     cls = int(box.cls[0])  # Class index
                     xyxy = box.xyxy[0]  # Bounding box coordinates
+                    conf = box.conf[0]  # Confidence score
+                    label = f"{model.model.names[cls]} {conf:.2f}"
                     if cls == 0:  # Assuming class '0' is 'mobil'
                         vehicle_detected["detected"] = True
-                        annotator.box_label(xyxy, "mobil", color=colors(2, True))
+                        annotator.box_label(xyxy, label, color=colors(2, True))
                     else:
-                        annotator.box_label(xyxy, "orang", color=colors(1, True))
+                        annotator.box_label(xyxy, label, color=colors(1, True))
 
             annotated_frame = annotator.result()
             window_name = "YOLOv8 Vehicle Detection"

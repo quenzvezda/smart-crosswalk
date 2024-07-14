@@ -6,7 +6,7 @@ import time
 logger = logging.getLogger('client')
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-server_address = ('192.168.2.14', 60003)
+server_address = ('192.168.43.160', 60003)
 isProcessRun = False
 lock = threading.Lock()
 connected = False
