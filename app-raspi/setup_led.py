@@ -1,4 +1,9 @@
-from gpiozero import LED
+import sys
+
+if 'win' in sys.platform:
+    from mock_gpio import LED
+else:
+    from gpiozero import LED
 
 
 def initialize_leds(pins):
