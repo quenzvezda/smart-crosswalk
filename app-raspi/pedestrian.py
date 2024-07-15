@@ -1,14 +1,7 @@
-import sys
-
-if 'win' in sys.platform:
-    from mock_gpio import LED
-else:
-    from gpiozero import LED
-
-from time import sleep
-from playsound import playsound
+from time import sleep, time
 import threading
 import logging
+from playsound import playsound
 from setup_led import pejalan_kaki_kiri, pejalan_kaki_kanan, mobil
 
 logger = logging.getLogger('pedestrian')
@@ -22,8 +15,6 @@ def print_status_with_countdown(message, countdown):
         sleep(1)
 
 def handle_pedestrian_crossing(client_socket, crossing_flag, delay_before_crossing, jumlah_orang):
-    #logger.info("Orang terdeteksi, mengubah lampu menjadi merah")
-
     # Play the initial waiting audio
     initial_audio_thread = threading.Thread(target=play_audio, args=("sound/mohon-tunggu.mp3",))
     initial_audio_thread.start()

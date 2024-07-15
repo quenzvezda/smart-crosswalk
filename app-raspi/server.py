@@ -33,7 +33,7 @@ def traffic_light_cycle():
 
             client_socket, addr = server_socket.accept()
             logger.info(f"Terhubung dengan {addr}")
-            handle_client(client_socket)
+            threading.Thread(target=handle_client, args=(client_socket,)).start()
     except KeyboardInterrupt:
         cleanup()
 
@@ -56,18 +56,21 @@ def handle_client(client_socket):
                         logger.info("Terdeteksi {} Orang Dan (Mobil), Memulai Fungsi Pedestrian".format(jumlah_orang))
                     else:
                         delay_before_crossing = 5
-                        logger.info(
-                            "Terdeteksi {} Orang Dan (Tanpa Mobil), Memulai Fungsi Pedestrian".format(jumlah_orang))
+                        logger.info("Terdeteksi {} Orang Dan (Tanpa Mobil), Memulai Fungsi Pedestrian".format(jumlah_orang))
 
                     crossing_flag.set()
                     client_socket.sendall("Pedestrian Process Started".encode('utf-8'))
-                    handle_pedestrian_crossing(client_socket, crossing_flag, delay_before_crossing, jumlah_orang)
-            client_socket.sendall("Pedestrian Process Finished".encode('utf-8'))
-            crossing_flag.clear()
+                    threading.Thread(target=run_pedestrian_cycle, args=(client_socket, delay_before_crossing, jumlah_orang)).start()
     except Exception as e:
         logger.error(f"Error handling client: {e}")
     finally:
         client_socket.close()
+
+
+def run_pedestrian_cycle(client_socket, delay_before_crossing, jumlah_orang):
+    handle_pedestrian_crossing(client_socket, crossing_flag, delay_before_crossing, jumlah_orang)
+    client_socket.sendall("Pedestrian Process Finished".encode('utf-8'))
+    crossing_flag.clear()
 
 
 def cleanup():
@@ -77,7 +80,8 @@ def cleanup():
         led.close()
     for led in pejalan_kaki_kanan.values():
         led.close()
-    server_socket.close()
+    if server_socket:
+        server_socket.close()
     logger.info("Program dihentikan, pin GPIO dibersihkan.")
 
 
