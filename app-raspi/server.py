@@ -68,7 +68,7 @@ def handle_client(client_socket):
 
 
 def run_pedestrian_cycle(client_socket, delay_before_crossing, jumlah_orang):
-    handle_pedestrian_crossing(client_socket, crossing_flag, delay_before_crossing, jumlah_orang, zebra_cross_flag)
+    handle_pedestrian_crossing(crossing_flag, delay_before_crossing, jumlah_orang, zebra_cross_flag)
     client_socket.sendall("Pedestrian Process Finished".encode('utf-8'))
     crossing_flag.clear()
 
