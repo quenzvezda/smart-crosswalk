@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger('server')
 
 crossing_flag = threading.Event()
-lock = threading.Lock()
+zebra_cross_flag = threading.Event()
 server_socket = None
 
 
@@ -68,7 +68,7 @@ def handle_client(client_socket):
 
 
 def run_pedestrian_cycle(client_socket, delay_before_crossing, jumlah_orang):
-    handle_pedestrian_crossing(client_socket, crossing_flag, delay_before_crossing, jumlah_orang)
+    handle_pedestrian_crossing(client_socket, crossing_flag, delay_before_crossing, jumlah_orang, zebra_cross_flag)
     client_socket.sendall("Pedestrian Process Finished".encode('utf-8'))
     crossing_flag.clear()
 
