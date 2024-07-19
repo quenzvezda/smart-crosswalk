@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox
 import socket
+import threading
 
 
 class DummyClientUI:
@@ -34,19 +35,26 @@ class DummyClientUI:
         self.send_button.pack()
         self.send_button.config(state=tk.DISABLED)  # Disabled until connected
 
+        self.clear_button = tk.Button(master, text="Zebra Cross is Clear", command=self.send_clear_data)
+        self.clear_button.pack()
+        self.clear_button.config(state=tk.DISABLED)  # Disabled until conditions met
+
         self.quit_button = tk.Button(master, text="Keluar", command=master.quit)
         self.quit_button.pack()
 
         self.server_connection = None
+        self.minimum_time_reached = False
+        self.pedestrian_process_started = False
 
     def connect_to_server(self):
         server_ip = self.server_ip_entry.get()
         server_port = 60003
 
-        self.server_connection = ServerConnection(server_ip, server_port)
+        self.server_connection = ServerConnection(server_ip, server_port, self)
         if self.server_connection.connect():
             messagebox.showinfo("Koneksi Berhasil", f"Terhubung ke server {server_ip}")
             self.send_button.config(state=tk.NORMAL)  # Enable send button
+            threading.Thread(target=self.server_connection.listen_to_server).start()  # Start listening to server
         else:
             messagebox.showerror("Koneksi Gagal", f"Gagal terhubung ke server {server_ip}")
 
@@ -66,12 +74,43 @@ class DummyClientUI:
         self.server_connection.send_data(data)
         messagebox.showinfo("Data Terkirim", f"Data terkirim ke server: {data}")
 
+    def send_clear_data(self):
+        data = "Zebra Cross is Clear"
+        self.server_connection.send_data(data)
+        messagebox.showinfo("Data Terkirim", f"Data terkirim ke server: {data}")
+        self.clear_button.config(state=tk.DISABLED)  # Disable until conditions are met again
+
+    def disable_send_button(self):
+        self.send_button.config(state=tk.DISABLED)
+
+    def enable_send_button(self):
+        self.send_button.config(state=tk.NORMAL)
+
+    def enable_clear_button(self):
+        if self.pedestrian_process_started and self.minimum_time_reached:
+            self.clear_button.config(state=tk.NORMAL)
+
+    def set_pedestrian_process_started(self):
+        self.pedestrian_process_started = True
+        self.minimum_time_reached = False  # Reset minimum time reached
+        self.clear_button.config(state=tk.DISABLED)  # Ensure clear button is disabled initially
+
+    def set_minimum_time_reached(self):
+        self.minimum_time_reached = True
+        self.enable_clear_button()
+
+    def set_pedestrian_process_finished(self):
+        self.pedestrian_process_started = False
+        self.minimum_time_reached = False
+        self.clear_button.config(state=tk.DISABLED)
+
 
 class ServerConnection:
-    def __init__(self, host, port):
+    def __init__(self, host, port, ui):
         self.host = host
         self.port = port
         self.client_socket = None
+        self.ui = ui
 
     def connect(self):
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -88,6 +127,22 @@ class ServerConnection:
             self.client_socket.sendall(data.encode('utf-8'))
         except Exception as e:
             print(f"Error mengirim data: {e}")
+
+    def listen_to_server(self):
+        try:
+            while True:
+                data = self.client_socket.recv(1024).decode('utf-8')
+                print(data)
+                if "Pedestrian Process Started" in data:
+                    self.ui.disable_send_button()
+                    self.ui.set_pedestrian_process_started()
+                elif "Minimum Time is Reached" in data:
+                    self.ui.set_minimum_time_reached()
+                elif "Pedestrian Process Finished" in data:
+                    self.ui.enable_send_button()
+                    self.ui.set_pedestrian_process_finished()
+        except Exception as e:
+            print(f"Error menerima data dari server: {e}")
 
 
 def main():
