@@ -23,14 +23,13 @@ def start_server():
 
 
 def traffic_light_cycle():
+    mobil['hijau'].on()
+    pejalan_kaki_kiri['merah'].on()
+    pejalan_kaki_kanan['merah'].on()
+    logger.info("Lampu Mobil Hijau, Pejalan Kaki Merah")
     try:
         start_server()
         while True:
-            mobil['hijau'].on()
-            pejalan_kaki_kiri['merah'].on()
-            pejalan_kaki_kanan['merah'].on()
-            logger.info("Lampu Mobil Hijau, Pejalan Kaki Merah")
-
             client_socket, addr = server_socket.accept()
             logger.info(f"Terhubung dengan {addr}")
             threading.Thread(target=handle_client, args=(client_socket,)).start()
@@ -43,6 +42,8 @@ def handle_client(client_socket):
     try:
         while True:
             data = client_socket.recv(1024).decode('utf-8')
+            if "Zebra Cross is Clear" in data:
+                zebra_cross_flag.set()
             if crossing_flag.is_set():
                 logger.info("Fungsi Pedestrian Sedang Berjalan - Data Diabaikan")
             else:
@@ -68,7 +69,7 @@ def handle_client(client_socket):
 
 
 def run_pedestrian_cycle(client_socket, delay_before_crossing, jumlah_orang):
-    handle_pedestrian_crossing(crossing_flag, delay_before_crossing, jumlah_orang, zebra_cross_flag)
+    handle_pedestrian_crossing(crossing_flag, delay_before_crossing, jumlah_orang, zebra_cross_flag, client_socket)
     client_socket.sendall("Pedestrian Process Finished".encode('utf-8'))
     crossing_flag.clear()
 

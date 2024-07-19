@@ -93,7 +93,7 @@ def wait_crossing_clear(max_wait_time, lampu_hijau_duration, zebra_cross_flag):
         sleep(0.1)
 
 
-def handle_pedestrian_crossing(crossing_flag, delay_before_crossing, jumlah_orang, zebra_cross_flag):
+def handle_pedestrian_crossing(crossing_flag, delay_before_crossing, jumlah_orang, zebra_cross_flag, client_socket):
     # Play the initial waiting audio
     play_audio("mohon-tunggu.mp3")
 
@@ -116,6 +116,9 @@ def handle_pedestrian_crossing(crossing_flag, delay_before_crossing, jumlah_oran
     play_audio("silakan.mp3")
 
     print_status_with_countdown("Lampu pejalan kaki akan merah", lampu_hijau_duration)
+
+    client_socket.sendall("Minimum Time is Reached".encode('utf-8'))
+    zebra_cross_flag.clear()
 
     # Countdown logic to check zebra_cross_flag
     max_wait_time = 30
