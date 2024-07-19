@@ -30,8 +30,8 @@ mouse_controller.setup_roi(2, [0.15, 0.30, 0.61, 0.65])  # ymin, xmin, ymax, xma
 total_orang_kiri = 0
 total_orang_kanan = 0
 vehicle_detected = False
-global is_pedestrian_run
 is_pedestrian_run = server.is_pedestrian_running
+is_minimum_time_reach = server.is_minimum_time_reached
 
 # Initialize lock
 lock = threading.Lock()
@@ -74,26 +74,37 @@ def camera_thread(camera_index, infer, mouse_controller, flip=False):
 def central_log():
     global total_orang_kiri, total_orang_kanan, vehicle_detected
     last_log_time = time.time()
+
     while True:
         with lock:
             total_orang = total_orang_kiri + total_orang_kanan
             current_vehicle_detected = vehicle_detected
 
         current_time = time.time()
-        if total_orang > 0 and (current_time - last_log_time) >= 5:
-            now = datetime.datetime.now()
-            timestamp = now.strftime("[%H:%M:%S.%f]")[:-3]  # Format to include only up to milliseconds
-            if server.is_pedestrian_running:
-                print(f"{timestamp}] Siklus lampu sedang berjalan berjalan, tidak mengirim data ke server.")
-            elif current_vehicle_detected:
-                server.send_data(f"Terdeteksi {total_orang} Orang Di Penyebrangan (Dengan Mobil)")
-                print(f"{timestamp}] Terdeteksi [{total_orang} Orang ({total_orang_kiri} Cam Kiri - {total_orang_kanan} Cam Kanan)] (Dengan Mobil) selama 5 detik.")
-            else:
-                server.send_data(f"Terdeteksi {total_orang} Orang Di Penyebrangan (Tanpa Mobil)")
-                print(f"{timestamp}] Terdeteksi [{total_orang} Orang ({total_orang_kiri} Cam Kiri - {total_orang_kanan} Cam Kanan)] (Tanpa Mobil) selama 5 detik.")
-            last_log_time = current_time
-        elif total_orang == 0:
+
+        if total_orang > 0:
+            if not server.is_pedestrian_running:
+                if (current_time - last_log_time) >= 5:
+                    now = datetime.datetime.now()
+                    timestamp = now.strftime("[%H:%M:%S.%f]")[:-3]  # Format to include only up to milliseconds
+                    if current_vehicle_detected:
+                        server.send_data(f"Terdeteksi {total_orang} Orang Di Penyebrangan (Dengan Mobil)")
+                        print(
+                            f"{timestamp}] Terdeteksi [{total_orang} Orang ({total_orang_kiri} Cam Kiri - {total_orang_kanan} Cam Kanan)] (Dengan Mobil) selama 5 detik.")
+                    else:
+                        server.send_data(f"Terdeteksi {total_orang} Orang Di Penyebrangan (Tanpa Mobil)")
+                        print(
+                            f"{timestamp}] Terdeteksi [{total_orang} Orang ({total_orang_kiri} Cam Kiri - {total_orang_kanan} Cam Kanan)] (Tanpa Mobil) selama 5 detik.")
+                    last_log_time = current_time  # Reset timer if no people are detected
+        else:
             last_log_time = current_time  # Reset timer if no people are detected
+            if server.is_minimum_time_reached:
+                now = datetime.datetime.now()
+                timestamp = now.strftime("[%H:%M:%S.%f]")[:-3]  # Format to include only up to milliseconds
+                server.send_data("Zebra Cross is Clear")
+                server.is_minimum_time_reached = False
+                print(f"{timestamp}] Zebra Cross is Clear")
+
         time.sleep(0.1)  # Reduce CPU usage by sleeping for 100ms
 
 

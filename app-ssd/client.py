@@ -11,6 +11,7 @@ class ServerConnection:
         self.socket = None
         self.connected = False
         self.is_pedestrian_running = False
+        self.is_minimum_time_reached = False
 
     def connect(self):
         if not self.connected:
@@ -38,8 +39,11 @@ class ServerConnection:
                     timestamp = now.strftime("[%H:%M:%S.%f]")[:-3]
                     print(f"{timestamp}] Siklus lampu selesai. Anda dapat mengirim perintah lagi.")
                     self.is_pedestrian_running = False
+                    self.is_minimum_time_reached = False
                 elif "Pedestrian Process Started" in data:
                     self.is_pedestrian_running = True
+                elif "Minimum Time is Reached" in data:
+                    self.is_minimum_time_reached = True
             except socket.error as e:
                 print(f"Error receiving data: {e}")
                 break
