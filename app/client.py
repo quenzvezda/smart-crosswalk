@@ -1,71 +1,66 @@
 import socket
 import threading
 import logging
-import time
+import datetime
 
 logger = logging.getLogger('client')
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-server_address = ('192.168.43.160', 60003)
-isProcessRun = False
-lock = threading.Lock()
-connected = False
-client_socket = None
 
+class ServerConnection:
+    def __init__(self, host, port):
+        self.host = host
+        self.port = port
+        self.socket = None
+        self.connected = False
+        self.is_pedestrian_running = False
+        self.is_minimum_time_reached = False
 
-def connect_to_server():
-    global client_socket, connected
-    while not connected:
-        try:
-            client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            client_socket.connect(server_address)
-            connected = True
-            logger.info("Terhubung ke server")
-        except Exception as e:
-            logger.error(f"Gagal menghubungkan ke server: {e}")
-            time.sleep(5)  # Coba lagi setelah 5 detik
-
-
-def send_data_to_server(data):
-    global isProcessRun
-    with lock:
-        if isProcessRun:
-            logger.info("Siklus lampu sedang berjalan berjalan, tidak mengirim data ke server.")
-            return
-    try:
-        client_socket.sendall(data.encode('utf-8'))
-        logger.info(f"Mengirim data ke server: {data}")
-        response = client_socket.recv(1024).decode('utf-8')
-        logger.info(f"Menerima Pesan dari Server: {response}")
-        if response == "Pedestrian Process Started":
-            with lock:
-                isProcessRun = True
-        elif response == "Pedestrian Process Finished":
-            with lock:
-                isProcessRun = False
-    except Exception as e:
-        logger.error(f"Error sending data to server: {e}")
-        connect_to_server()
-
-
-def monitor_server_response():
-    global isProcessRun, connected
-    while True:
-        time.sleep(1)
-        if isProcessRun:
+    def connect(self):
+        if not self.connected:
+            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             try:
-                client_socket.sendall("Check Status".encode('utf-8'))
-                response = client_socket.recv(1024).decode('utf-8')
-                if response == "Pedestrian Process Finished":
-                    with lock:
-                        isProcessRun = False
-                    logger.info("Siklus lampu selesai. Anda dapat mengirim perintah lagi.")
-            except Exception as e:
-                logger.error(f"Error checking server response: {e}")
-                connected = False
-                connect_to_server()
+                self.socket.connect((self.host, self.port))
+                self.connected = True
+                logger.info("Connected to server")
+            except socket.error as e:
+                logger.error(f"Failed to connect to server: {e}")
 
+    def send_data(self, message):
+        if self.connected:
+            try:
+                self.socket.sendall(message.encode())
+                logger.info(f"Sent data to server: {message}")
+                if message == "Zebra Cross is Clear":
+                    self.is_minimum_time_reached = False
+            except socket.error as e:
+                logger.error(f"Error sending data: {e}")
+                self.connect()
 
-# Start the thread to monitor server response
-threading.Thread(target=monitor_server_response, daemon=True).start()
-connect_to_server()
+    def receive_data(self):
+        while self.connected:
+            try:
+                data = self.socket.recv(1024).decode('utf-8')
+                if "Pedestrian Process Finished" in data:
+                    now = datetime.datetime.now()
+                    timestamp = now.strftime("[%H:%M:%S.%f]")[:-3]
+                    logger.info(f"{timestamp}] Siklus lampu selesai. Anda dapat mengirim perintah lagi.")
+                    self.is_pedestrian_running = False
+                    self.is_minimum_time_reached = False
+                elif "Pedestrian Process Started" in data:
+                    self.is_pedestrian_running = True
+                elif "Minimum Time is Reached" in data:
+                    self.is_minimum_time_reached = True
+            except socket.error as e:
+                logger.error(f"Error receiving data: {e}")
+                break
+
+    def start_receiving_thread(self):
+        thread = threading.Thread(target=self.receive_data)
+        thread.start()
+
+    def close_connection(self):
+        if self.connected:
+            self.socket.close()
+            self.connected = False
+            logger.info("Disconnected from server")

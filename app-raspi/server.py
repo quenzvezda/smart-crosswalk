@@ -42,6 +42,7 @@ def handle_client(client_socket):
     try:
         while True:
             data = client_socket.recv(1024).decode('utf-8')
+            logger.info(data)
             if "Zebra Cross is Clear" in data:
                 zebra_cross_flag.set()
             if crossing_flag.is_set():

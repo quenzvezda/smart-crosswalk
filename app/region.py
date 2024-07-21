@@ -9,7 +9,7 @@ track_history_kanan = defaultdict(list)
 counting_regions_kiri = [
     {
         "name": "YOLOv8 Rectangle Region Kiri",
-        "polygon": Polygon([(176, 36), (416, 36), (416, 336), (176, 336)]),
+        "polygon": Polygon([(121, 45), (445, 45), (445, 345), (121, 345)]),
         "counts": 0,
         "dragging": False,
         "region_color": (37, 255, 225),
@@ -20,7 +20,9 @@ counting_regions_kiri = [
 counting_regions_kanan = [
     {
         "name": "YOLOv8 Rectangle Region Kanan",
-        "polygon": Polygon([(176, 36), (416, 36), (416, 336), (176, 336)]),
+        # A B C D [Kiri Atas - Kanan Atas - Kanan Bawah - Kiri Bawah]
+        # X Y, X Y, X Y, X Y
+        "polygon": Polygon([(72, 48), (443, 48), (443, 346), (72, 346)]),
         "counts": 0,
         "dragging": False,
         "region_color": (37, 255, 225),
