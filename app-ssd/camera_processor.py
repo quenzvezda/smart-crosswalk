@@ -10,7 +10,7 @@ real_width = 3.5  # Lebar nyata mobil dalam meter (sesuaikan dengan lebar rata-r
 distance_estimator = DistanceEstimator(focal_length=focal, real_width=real_width)
 
 
-def process_frame(frame, infer, class_labels, roi=None):
+def process_frame(frame, infer, class_labels, roi=None, estimate_distance=False):
     # Preprocessing
     resized_frame = cv2.resize(frame, (640, 640))
     rgb_frame = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2RGB)
@@ -49,15 +49,17 @@ def process_frame(frame, infer, class_labels, roi=None):
             if label == 'mobil':
                 vehicle_detected = True
 
-                # Proses Estimasi Jarak Per-Objek yang terdeteksi
-                pixel_width = abs(right - left)  # Lebar bounding box dalam piksel
-                estimated_distance = distance_estimator.estimate(pixel_width)
+                # Perform distance estimation only if estimate_distance is True
+                if estimate_distance:
+                    # Distance Estimation Process for detected objects
+                    pixel_width = abs(right - left)  # Width of bounding box in pixels
+                    estimated_distance = distance_estimator.estimate(pixel_width)
 
-                if estimated_distance:
-                    # Tampilkan estimasi jarak di atas bounding box
-                    distance_text = f"Jarak: {estimated_distance:.2f} m"
-                    frame = cv2.putText(frame, distance_text, (int(left), int(top - 25)),
-                                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                    if estimated_distance:
+                        # Display estimated distance above the bounding box
+                        distance_text = f"Jarak: {estimated_distance:.2f} m"
+                        frame = cv2.putText(frame, distance_text, (int(left), int(top - 25)),
+                                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
     # Draw ROI and display count and coordinates if ROI is defined
     if roi:

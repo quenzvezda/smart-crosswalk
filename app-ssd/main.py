@@ -10,21 +10,21 @@ from client import ServerConnection
 # Mapping of camera indexes to their roles
 camera_roles = {
     0: 'vehicle',  # Kamera mobil yang perlu dibalik
-    1: 'left',     # Kamera orang kiri
-    2: 'right'     # Kamera orang kanan
+    2: 'left',     # Kamera orang kiri
+    3: 'right'     # Kamera orang kanan
 }
 
 # Setup server connection
-server = ServerConnection('192.168.43.160', 60003)
+server = ServerConnection('192.168.2.101', 60003)
 server.connect()
 server.start_receiving_thread()
 
 # Index yang harus dibalik
-index_to_flip = 0
+index_to_flip = 1
 
 mouse_controller = MouseController()
-mouse_controller.setup_roi(1, [0.25, 0.26, 0.73, 0.63])  # ymin, xmin, ymax, xmax for camera 1
-mouse_controller.setup_roi(2, [0.15, 0.30, 0.61, 0.65])  # ymin, xmin, ymax, xmax for camera 2
+mouse_controller.setup_roi(2, [0.25, 0.26, 0.73, 0.63])  # ymin, xmin, ymax, xmax for camera 1
+mouse_controller.setup_roi(3, [0.15, 0.30, 0.61, 0.65])  # ymin, xmin, ymax, xmax for camera 2
 
 # Global variables
 total_orang_kiri = 0
@@ -44,6 +44,8 @@ def camera_thread(camera_index, infer, mouse_controller, flip=False):
     cv2.setMouseCallback(f'Camera {camera_index}', mouse_controller.mouse_event,
                          param=(camera_index, cap.read()[1].shape))
 
+    camera_role = camera_roles[camera_index]  # Get the role of the current camera
+
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -51,16 +53,20 @@ def camera_thread(camera_index, infer, mouse_controller, flip=False):
         if flip:
             frame = cv2.flip(frame, -1)
         roi = mouse_controller.get_roi(camera_index)
-        frame, count_people_in_roi, vehicle_detected_in_frame = process_frame(frame, infer, {1: 'mobil', 2: 'orang'},
-                                                                              roi)
+
+        # Set estimate_distance to True only for the 'vehicle' camera
+        estimate_distance = (camera_role == 'vehicle')
+
+        frame, count_people_in_roi, vehicle_detected_in_frame = process_frame(
+            frame, infer, {1: 'mobil', 2: 'orang'}, roi, estimate_distance=estimate_distance)
 
         # Update global variables with lock
         with lock:
-            if camera_roles[camera_index] == 'left':
+            if camera_role == 'left':
                 total_orang_kiri = count_people_in_roi
-            elif camera_roles[camera_index] == 'right':
+            elif camera_role == 'right':
                 total_orang_kanan = count_people_in_roi
-            elif camera_roles[camera_index] == 'vehicle':
+            elif camera_role == 'vehicle':
                 vehicle_detected = vehicle_detected_in_frame
 
         cv2.imshow(f'Camera {camera_index}', frame)
