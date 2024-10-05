@@ -1,5 +1,11 @@
 import cv2
-import numpy as np
+
+# File Ini berguna untuk menguji secara manual distance estimation
+# Cara kerjanya kita jalankan program ini maka akan muncul window yang menampilkan webcam feed
+# Kemudian kita tekan "p" untuk mengambil gambar yang terdapat objek yang ingin diketahui jaraknya
+# Setelah itu muncul window baru hasil tangkapan webcam, pada window ini kita buat bounding box pada object
+# Ketika sudah selesai tekan C, hasil jarak akan ada pada kiri atas window
+# Tekan "r" untuk mengulangi proses
 
 # Variabel global untuk koordinat bounding box
 ref_point = []
@@ -10,6 +16,7 @@ focal = 502  # Panjang fokus berdasarkan kalibrasi sebelumnya
 width = 3.5  # Lebar nyata objek dalam cm (di-hardcode)
 dist = 0  # Estimasi jarak yang akan dihitung
 pixels = 0  # Placeholder untuk jumlah piksel (akan dihitung dari bounding box)
+
 
 def click_and_crop(event, x, y, flags, param):
     global ref_point, cropping, img_copy
@@ -28,6 +35,7 @@ def click_and_crop(event, x, y, flags, param):
 
         # Cetak koordinat untuk memastikan mereka terekam
         print(f"Koordinat bounding box: {ref_point}")
+
 
 # Fungsi untuk menangkap gambar
 def capture_image(cap):
@@ -51,6 +59,7 @@ def capture_image(cap):
             return None
 
     return img
+
 
 # Fungsi utama
 def main():
@@ -109,6 +118,7 @@ def main():
 
     cap.release()
     cv2.destroyAllWindows()
+
 
 if __name__ == "__main__":
     main()
