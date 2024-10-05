@@ -1,6 +1,13 @@
 import cv2
 import numpy as np
+
+from src.distance.estimator import DistanceEstimator
 from utils import is_within_roi, calculate_overlap
+
+# Inisialisasi DistanceEstimator (kita bisa memindahkan ini ke main.py jika ingin)
+focal = 502  # Nilai panjang fokus yang sudah dikalibrasi
+real_width = 3.5  # Lebar nyata mobil dalam meter (sesuaikan dengan lebar rata-rata mobil)
+distance_estimator = DistanceEstimator(focal_length=focal, real_width=real_width)
 
 
 def process_frame(frame, infer, class_labels, roi=None):
@@ -41,6 +48,16 @@ def process_frame(frame, infer, class_labels, roi=None):
             # Check for vehicle detection
             if label == 'mobil':
                 vehicle_detected = True
+
+                # Proses Estimasi Jarak Per-Objek yang terdeteksi
+                pixel_width = abs(right - left)  # Lebar bounding box dalam piksel
+                estimated_distance = distance_estimator.estimate(pixel_width)
+
+                if estimated_distance:
+                    # Tampilkan estimasi jarak di atas bounding box
+                    distance_text = f"Jarak: {estimated_distance:.2f} m"
+                    frame = cv2.putText(frame, distance_text, (int(left), int(top - 25)),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
     # Draw ROI and display count and coordinates if ROI is defined
     if roi:
