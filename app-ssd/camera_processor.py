@@ -25,7 +25,7 @@ def process_frame(frame, infer, class_labels, roi=None, estimate_distance=False)
     scores = output_dict['detection_scores'][0].numpy()
     classes = output_dict['detection_classes'][0].numpy()
     count_people_in_roi = 0
-    vehicle_detected = False
+    vehicle_detected = None
 
     for i in range(len(scores)):
         if scores[i] > 0.5:
@@ -46,20 +46,20 @@ def process_frame(frame, infer, class_labels, roi=None, estimate_distance=False)
                     count_people_in_roi += 1
 
             # Check for vehicle detection
-            if label == 'mobil':
-                vehicle_detected = True
+            if label == 'mobil' and estimate_distance:
+                # Perform distance estimation
+                pixel_width = abs(right - left)
+                estimated_distance = distance_estimator.estimate(pixel_width)
 
-                # Perform distance estimation only if estimate_distance is True
-                if estimate_distance:
-                    # Distance Estimation Process for detected objects
-                    pixel_width = abs(right - left)  # Width of bounding box in pixels
-                    estimated_distance = distance_estimator.estimate(pixel_width)
+                if estimated_distance:
+                    # Display estimated distance
+                    distance_text = f"Jarak: {estimated_distance:.2f} cm"
+                    frame = cv2.putText(frame, distance_text, (int(left), int(top - 25)),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
-                    if estimated_distance:
-                        # Display estimated distance above the bounding box
-                        distance_text = f"Jarak: {estimated_distance:.2f} m"
-                        frame = cv2.putText(frame, distance_text, (int(left), int(top - 25)),
-                                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                    # Update vehicle_detected with the minimum distance
+                    if vehicle_detected is None or estimated_distance < vehicle_detected:
+                        vehicle_detected = estimated_distance
 
     # Draw ROI and display count and coordinates if ROI is defined
     if roi:

@@ -10,8 +10,8 @@ from client import ServerConnection
 # Mapping of camera indexes to their roles
 camera_roles = {
     0: 'vehicle',  # Kamera mobil yang perlu dibalik
-    2: 'left',     # Kamera orang kiri
-    3: 'right'     # Kamera orang kanan
+    1: 'left',     # Kamera orang kiri
+    2: 'right'     # Kamera orang kanan
 }
 
 # Setup server connection
@@ -20,16 +20,16 @@ server.connect()
 server.start_receiving_thread()
 
 # Index yang harus dibalik
-index_to_flip = 1
+index_to_flip = 0
 
 mouse_controller = MouseController()
-mouse_controller.setup_roi(2, [0.25, 0.26, 0.73, 0.63])  # ymin, xmin, ymax, xmax for camera 1
-mouse_controller.setup_roi(3, [0.15, 0.30, 0.61, 0.65])  # ymin, xmin, ymax, xmax for camera 2
+mouse_controller.setup_roi(1, [0.25, 0.26, 0.73, 0.63])  # ymin, xmin, ymax, xmax for camera 1
+mouse_controller.setup_roi(2, [0.15, 0.30, 0.61, 0.65])  # ymin, xmin, ymax, xmax for camera 2
 
 # Global variables
 total_orang_kiri = 0
 total_orang_kanan = 0
-vehicle_detected = False
+vehicle_detected = None
 is_pedestrian_run = server.is_pedestrian_running
 is_minimum_time_reach = server.is_minimum_time_reached
 
@@ -40,11 +40,15 @@ lock = threading.Lock()
 def camera_thread(camera_index, infer, mouse_controller, flip=False):
     global total_orang_kiri, total_orang_kanan, vehicle_detected
     cap = cv2.VideoCapture(camera_index)
+    ret, frame = cap.read()
+    if not ret:
+        print(f"Failed to read from camera {camera_index}")
+        return
     cv2.namedWindow(f'Camera {camera_index}')
     cv2.setMouseCallback(f'Camera {camera_index}', mouse_controller.mouse_event,
-                         param=(camera_index, cap.read()[1].shape))
+                         param=(camera_index, frame.shape))
 
-    camera_role = camera_roles[camera_index]  # Get the role of the current camera
+    camera_role = camera_roles[camera_index]
 
     while True:
         ret, frame = cap.read()
@@ -67,7 +71,7 @@ def camera_thread(camera_index, infer, mouse_controller, flip=False):
             elif camera_role == 'right':
                 total_orang_kanan = count_people_in_roi
             elif camera_role == 'vehicle':
-                vehicle_detected = vehicle_detected_in_frame
+                vehicle_detected = vehicle_detected_in_frame  # Now holds the closest distance
 
         cv2.imshow(f'Camera {camera_index}', frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -84,7 +88,7 @@ def central_log():
     while True:
         with lock:
             total_orang = total_orang_kiri + total_orang_kanan
-            current_vehicle_detected = vehicle_detected
+            current_vehicle_distance = vehicle_detected  # None or distance in meters
 
         current_time = time.time()
 
@@ -92,26 +96,24 @@ def central_log():
             if not server.is_pedestrian_running:
                 if (current_time - last_log_time) >= 5:
                     now = datetime.datetime.now()
-                    timestamp = now.strftime("[%H:%M:%S.%f]")[:-3]  # Format to include only up to milliseconds
-                    if current_vehicle_detected:
-                        server.send_data(f"Terdeteksi {total_orang} Orang Di Penyebrangan (Dengan Mobil)")
-                        print(
-                            f"{timestamp}] Terdeteksi [{total_orang} Orang ({total_orang_kiri} Cam Kiri - {total_orang_kanan} Cam Kanan)] (Dengan Mobil) selama 5 detik.")
+                    timestamp = now.strftime("[%H:%M:%S.%f]")[:-3]
+                    if current_vehicle_distance is not None:
+                        server.send_data(f"Terdeteksi {total_orang} Orang Di Penyebrangan (Dengan Mobil) {current_vehicle_distance:.2f} cm")
+                        print(f"{timestamp}] Terdeteksi [{total_orang} Orang ({total_orang_kiri} Cam Kiri - {total_orang_kanan} Cam Kanan)] (Dengan Mobil) {current_vehicle_distance:.2f} cm selama 5 detik.")
                     else:
                         server.send_data(f"Terdeteksi {total_orang} Orang Di Penyebrangan (Tanpa Mobil)")
-                        print(
-                            f"{timestamp}] Terdeteksi [{total_orang} Orang ({total_orang_kiri} Cam Kiri - {total_orang_kanan} Cam Kanan)] (Tanpa Mobil) selama 5 detik.")
-                    last_log_time = current_time  # Reset timer if no people are detected
+                        print(f"{timestamp}] Terdeteksi [{total_orang} Orang ({total_orang_kiri} Cam Kiri - {total_orang_kanan} Cam Kanan)] (Tanpa Mobil) selama 5 detik.")
+                    last_log_time = current_time  # Reset timer
         else:
             last_log_time = current_time  # Reset timer if no people are detected
             if server.is_minimum_time_reached:
                 now = datetime.datetime.now()
-                timestamp = now.strftime("[%H:%M:%S.%f]")[:-3]  # Format to include only up to milliseconds
+                timestamp = now.strftime("[%H:%M:%S.%f]")[:-3]
                 server.send_data("Zebra Cross is Clear")
                 server.is_minimum_time_reached = False
                 print(f"{timestamp}] Zebra Cross is Clear")
 
-        time.sleep(0.1)  # Reduce CPU usage by sleeping for 100ms
+        time.sleep(0.1)  # Reduce CPU usage
 
 
 # Define your TensorFlow model here
