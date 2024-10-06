@@ -3,33 +3,65 @@ import threading
 import time
 import cv2
 import tensorflow as tf
+import configparser
 from camera_processor import process_frame
 from mouse_controller import MouseController
 from client import ServerConnection
+from src.distance.estimator import DistanceEstimator
 
-# Mapping of camera indexes to their roles
-camera_roles = {
-    0: 'vehicle',  # Kamera mobil yang perlu dibalik
-    1: 'left',     # Kamera orang kiri
-    2: 'right'     # Kamera orang kanan
-}
+# Initialize ConfigParser
+config = configparser.ConfigParser()
+config.read('config.ini')
 
-# Setup server connection
-server = ServerConnection('192.168.2.101', 60003)
+# Read Camera indexes and roles
+indexes = config.get('Camera', 'indexes').split(',')
+indexes = [int(i.strip()) for i in indexes]
+roles = config.get('Camera', 'roles').split(',')
+roles = [role.strip() for role in roles]
+
+camera_roles = {indexes[i]: roles[i] for i in range(len(indexes))}
+
+# Read index_to_flip
+index_to_flip = config.getint('Camera', 'index_to_flip')
+
+# Initialize MouseController Object
+mouse_controller = MouseController()
+
+# Read and set up ROIs
+for index in indexes:
+    key = f'roi_{index}'
+    if key in config['Camera']:
+        roi_values = config.get('Camera', key).split(',')
+        roi_values = [float(x.strip()) for x in roi_values]
+        mouse_controller.setup_roi(index, roi_values)
+
+# Read server settings
+server_host = config.get('Server', 'host')
+server_port = config.getint('Server', 'port')
+
+# Setup server connection Object
+server = ServerConnection(server_host, server_port)
 server.connect()
 server.start_receiving_thread()
 
-# Index yang harus dibalik
-index_to_flip = 0
+# Read model path
+model_path = config.get('Model', 'path')
 
-mouse_controller = MouseController()
-mouse_controller.setup_roi(1, [0.25, 0.26, 0.73, 0.63])  # ymin, xmin, ymax, xmax for camera 1
-mouse_controller.setup_roi(2, [0.15, 0.30, 0.61, 0.65])  # ymin, xmin, ymax, xmax for camera 2
+# Define your TensorFlow model here
+loaded_model = tf.saved_model.load(model_path)
+infer = loaded_model.signatures['serving_default']
+
+# Read DistanceEstimator settings
+focal_length = config.getfloat('DistanceEstimator', 'focal_length')
+real_width = config.getfloat('DistanceEstimator', 'real_width')
+
+# Initialize DistanceEstimator
+distance_estimator = DistanceEstimator(focal_length=focal_length, real_width=real_width)
 
 # Global variables
 total_orang_kiri = 0
 total_orang_kanan = 0
-vehicle_detected = None
+vehicle_detected = None  # Changed to hold distance
 is_pedestrian_run = server.is_pedestrian_running
 is_minimum_time_reach = server.is_minimum_time_reached
 
@@ -37,7 +69,7 @@ is_minimum_time_reach = server.is_minimum_time_reached
 lock = threading.Lock()
 
 
-def camera_thread(camera_index, infer, mouse_controller, flip=False):
+def camera_thread(camera_index, infer_param, mouse_controller_param, flip_param=False, distance_estimator_param=None):
     global total_orang_kiri, total_orang_kanan, vehicle_detected
     cap = cv2.VideoCapture(camera_index)
     ret, frame = cap.read()
@@ -45,7 +77,7 @@ def camera_thread(camera_index, infer, mouse_controller, flip=False):
         print(f"Failed to read from camera {camera_index}")
         return
     cv2.namedWindow(f'Camera {camera_index}')
-    cv2.setMouseCallback(f'Camera {camera_index}', mouse_controller.mouse_event,
+    cv2.setMouseCallback(f'Camera {camera_index}', mouse_controller_param.mouse_event,
                          param=(camera_index, frame.shape))
 
     camera_role = camera_roles[camera_index]
@@ -54,15 +86,16 @@ def camera_thread(camera_index, infer, mouse_controller, flip=False):
         ret, frame = cap.read()
         if not ret:
             break
-        if flip:
+        if flip_param:
             frame = cv2.flip(frame, -1)
-        roi = mouse_controller.get_roi(camera_index)
+        roi = mouse_controller_param.get_roi(camera_index)
 
         # Set estimate_distance to True only for the 'vehicle' camera
         estimate_distance = (camera_role == 'vehicle')
 
         frame, count_people_in_roi, vehicle_detected_in_frame = process_frame(
-            frame, infer, {1: 'mobil', 2: 'orang'}, roi, estimate_distance=estimate_distance)
+            frame, infer_param, {1: 'mobil', 2: 'orang'}, roi, estimate_distance=estimate_distance,
+            distance_estimator=distance_estimator_param)
 
         # Update global variables with lock
         with lock:
@@ -98,11 +131,14 @@ def central_log():
                     now = datetime.datetime.now()
                     timestamp = now.strftime("[%H:%M:%S.%f]")[:-3]
                     if current_vehicle_distance is not None:
-                        server.send_data(f"Terdeteksi {total_orang} Orang Di Penyebrangan (Dengan Mobil) {current_vehicle_distance:.2f} cm")
-                        print(f"{timestamp}] Terdeteksi [{total_orang} Orang ({total_orang_kiri} Cam Kiri - {total_orang_kanan} Cam Kanan)] (Dengan Mobil) {current_vehicle_distance:.2f} cm selama 5 detik.")
+                        server.send_data(
+                            f"Terdeteksi {total_orang} Orang Di Penyebrangan (Dengan Mobil) {current_vehicle_distance:.2f} m")
+                        print(
+                            f"{timestamp}] Terdeteksi [{total_orang} Orang ({total_orang_kiri} Cam Kiri - {total_orang_kanan} Cam Kanan)] (Dengan Mobil) {current_vehicle_distance:.2f} m selama 5 detik.")
                     else:
                         server.send_data(f"Terdeteksi {total_orang} Orang Di Penyebrangan (Tanpa Mobil)")
-                        print(f"{timestamp}] Terdeteksi [{total_orang} Orang ({total_orang_kiri} Cam Kiri - {total_orang_kanan} Cam Kanan)] (Tanpa Mobil) selama 5 detik.")
+                        print(
+                            f"{timestamp}] Terdeteksi [{total_orang} Orang ({total_orang_kiri} Cam Kiri - {total_orang_kanan} Cam Kanan)] (Tanpa Mobil) selama 5 detik.")
                     last_log_time = current_time  # Reset timer
         else:
             last_log_time = current_time  # Reset timer if no people are detected
@@ -116,16 +152,12 @@ def central_log():
         time.sleep(0.1)  # Reduce CPU usage
 
 
-# Define your TensorFlow model here
-model_path = '../models/ssd-new-dataset'
-loaded_model = tf.saved_model.load(model_path)
-infer = loaded_model.signatures['serving_default']
-
 # Start threads for each camera using the list of camera indexes
 threads = []
 for index in camera_roles.keys():
     flip = (index == index_to_flip)
-    thread = threading.Thread(target=camera_thread, args=(index, infer, mouse_controller, flip))
+    # Pass distance_estimator to the camera_thread
+    thread = threading.Thread(target=camera_thread, args=(index, infer, mouse_controller, flip, distance_estimator))
     thread.start()
     threads.append(thread)
 

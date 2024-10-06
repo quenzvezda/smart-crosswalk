@@ -1,16 +1,10 @@
 import cv2
 import numpy as np
 
-from src.distance.estimator import DistanceEstimator
-from utils import is_within_roi, calculate_overlap
-
-# Inisialisasi DistanceEstimator (kita bisa memindahkan ini ke main.py jika ingin)
-focal = 502  # Nilai panjang fokus yang sudah dikalibrasi
-real_width = 3.5  # Lebar nyata mobil dalam meter (sesuaikan dengan lebar rata-rata mobil)
-distance_estimator = DistanceEstimator(focal_length=focal, real_width=real_width)
+from utils import calculate_overlap
 
 
-def process_frame(frame, infer, class_labels, roi=None, estimate_distance=False):
+def process_frame(frame, infer, class_labels, roi=None, estimate_distance=False, distance_estimator=None):
     # Preprocessing
     resized_frame = cv2.resize(frame, (640, 640))
     rgb_frame = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2RGB)
@@ -25,7 +19,7 @@ def process_frame(frame, infer, class_labels, roi=None, estimate_distance=False)
     scores = output_dict['detection_scores'][0].numpy()
     classes = output_dict['detection_classes'][0].numpy()
     count_people_in_roi = 0
-    vehicle_detected = None
+    vehicle_detected = None  # Initialize to None
 
     for i in range(len(scores)):
         if scores[i] > 0.5:
@@ -46,14 +40,14 @@ def process_frame(frame, infer, class_labels, roi=None, estimate_distance=False)
                     count_people_in_roi += 1
 
             # Check for vehicle detection
-            if label == 'mobil' and estimate_distance:
+            if label == 'mobil' and estimate_distance and distance_estimator:
                 # Perform distance estimation
                 pixel_width = abs(right - left)
                 estimated_distance = distance_estimator.estimate(pixel_width)
 
                 if estimated_distance:
                     # Display estimated distance
-                    distance_text = f"Jarak: {estimated_distance:.2f} cm"
+                    distance_text = f"Jarak: {estimated_distance:.2f} m"
                     frame = cv2.putText(frame, distance_text, (int(left), int(top - 25)),
                                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
@@ -67,9 +61,9 @@ def process_frame(frame, infer, class_labels, roi=None, estimate_distance=False)
         pt2 = (int(roi[3] * frame.shape[1]), int(roi[2] * frame.shape[0]))
         frame = cv2.rectangle(frame, pt1, pt2, (0, 255, 255), 2)  # Change color here to yellow
         frame = cv2.putText(frame, f"Count: {count_people_in_roi}", (pt1[0], pt1[1] - 10), cv2.FONT_HERSHEY_SIMPLEX,
-                            0.5, (0, 255, 255), 2)  # Optionally change text color to yellow
+                            0.5, (0, 255, 255), 2)
         coord_text = f"({roi[1]:.2f}, {roi[0]:.2f}), ({roi[3]:.2f}, {roi[2]:.2f})"
         frame = cv2.putText(frame, coord_text, (pt1[0], frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                            (0, 255, 255), 2)  # Optionally change text color to yellow
+                            (0, 255, 255), 2)
 
     return frame, count_people_in_roi, vehicle_detected
