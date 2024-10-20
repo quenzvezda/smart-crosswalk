@@ -1,5 +1,12 @@
 import cv2
-import numpy as np
+
+# File ini berfungsi untuk melakukan kalibrasi ( mendapatkan focals) distance estimation
+# Cara kerjanya kita jalankan program ini maka akan muncul window yang menampilkan webcam feed
+# Kemudian kita tekan "p" untuk mengambil gambar yang terdapat objek yang ingin diketahui jaraknya
+# Setalah itu masukkan data jarak asli (cm) object ketika diambil gambarnya pada terminal
+# Masukkan data lebar object (cm) yang ingin diketahui estimasi jaraknya
+# Kemudian gambar / buat bounding box dari hasil tangkapan gambar pada object (gambar / buat seakurat mungkin)
+# Setelah selesai tekan C, untuk menampilkan hasil perhitungan focalsnya
 
 # Variabel global untuk koordinat bounding box
 ref_point = []
