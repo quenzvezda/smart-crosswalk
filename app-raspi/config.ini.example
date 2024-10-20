@@ -1,0 +1,30 @@
+[Server]
+host = 0.0.0.0
+port = 60003
+
+[GPIO]
+# Pins for pedestrian left traffic lights
+pedestrian_left_red = 5
+pedestrian_left_yellow = 6
+pedestrian_left_green = 26
+
+# Pins for pedestrian right traffic lights
+pedestrian_right_red = 17
+pedestrian_right_yellow = 27
+pedestrian_right_green = 22
+
+# Pins for vehicle traffic lights
+vehicle_red = 23
+vehicle_yellow = 24
+vehicle_green = 25
+
+[Audio]
+# Paths to audio files
+wait_audio = sound/mohon-tunggu.mp3
+go_audio = sound/silakan.mp3
+
+[Pedestrian]
+# Durations for pedestrian crossing
+delay_before_crossing_with_vehicle = 10
+delay_before_crossing_without_vehicle = 5
+max_wait_time = 30
