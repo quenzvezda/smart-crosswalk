@@ -121,33 +121,40 @@ def central_log():
     while True:
         with lock:
             total_orang = total_orang_kiri + total_orang_kanan
-            current_vehicle_distance = vehicle_detected  # None or distance in meters
+            current_vehicle_distance = vehicle_detected
 
         current_time = time.time()
 
-        if total_orang > 0:
-            if not server.is_pedestrian_running:
-                if (current_time - last_log_time) >= 5:
-                    now = datetime.datetime.now()
-                    timestamp = now.strftime("[%H:%M:%S.%f]")[:-3]
-                    if current_vehicle_distance is not None:
-                        server.send_data(
-                            f"Terdeteksi {total_orang} Orang Di Penyebrangan (Dengan Mobil) {current_vehicle_distance:.2f} m")
-                        print(
-                            f"{timestamp}] Terdeteksi [{total_orang} Orang ({total_orang_kiri} Cam Kiri - {total_orang_kanan} Cam Kanan)] (Dengan Mobil) {current_vehicle_distance:.2f} m selama 5 detik.")
-                    else:
-                        server.send_data(f"Terdeteksi {total_orang} Orang Di Penyebrangan (Tanpa Mobil)")
-                        print(
-                            f"{timestamp}] Terdeteksi [{total_orang} Orang ({total_orang_kiri} Cam Kiri - {total_orang_kanan} Cam Kanan)] (Tanpa Mobil) selama 5 detik.")
-                    last_log_time = current_time  # Reset timer
+        # Skenario: Total orang > 0, pedestrian tidak berjalan
+        if total_orang > 0 and not server.is_pedestrian_running:
+            if (current_time - last_log_time) >= 5:
+                now = datetime.datetime.now()
+                timestamp = now.strftime("[%H:%M:%S.%f]")[:-3]
+                if current_vehicle_distance is not None:
+                    server.send_data(
+                        f"Terdeteksi {total_orang} Orang Di Penyebrangan (Dengan Mobil) {current_vehicle_distance:.2f} m")
+                    print(
+                        f"{timestamp}] Terdeteksi [{total_orang} Orang ({total_orang_kiri} Cam Kiri - {total_orang_kanan})] (Dengan Mobil) {current_vehicle_distance:.2f} m selama 5 detik.")
+                else:
+                    server.send_data(f"Terdeteksi {total_orang} Orang Di Penyebrangan (Tanpa Mobil)")
+                    print(
+                        f"{timestamp}] Terdeteksi [{total_orang} Orang ({total_orang_kiri} Cam Kiri - {total_orang_kanan})] (Tanpa Mobil) selama 5 detik.")
+                last_log_time = current_time  # Reset timer
         else:
-            last_log_time = current_time  # Reset timer if no people are detected
+            # Reset timer untuk semua kondisi lain
+            last_log_time = current_time
+
+        # Skenario: Tidak ada orang (total_orang = 0) dan pedestrian berjalan
+        if total_orang == 0 and server.is_pedestrian_running:
             if server.is_minimum_time_reached:
                 now = datetime.datetime.now()
                 timestamp = now.strftime("[%H:%M:%S.%f]")[:-3]
                 server.send_data("Zebra Cross is Clear")
-                server.is_minimum_time_reached = False
+                server.is_minimum_time_reached = False  # Reset flag
                 print(f"{timestamp}] Zebra Cross is Clear")
+
+            # Reset timer setelah mengirim log atau jika pedestrian sedang berjalan
+            last_log_time = current_time
 
         time.sleep(0.1)  # Reduce CPU usage
 

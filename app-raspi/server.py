@@ -61,8 +61,8 @@ def handle_client(client_socket):
             logger.info(data)
             if "Zebra Cross is Clear" in data:
                 zebra_cross_flag.set()
-            if crossing_flag.is_set():
-                logger.info("Fungsi Pedestrian Sedang Berjalan - Data Diabaikan")
+            # if crossing_flag.is_set():
+            #     logger.info("Fungsi Pedestrian Sedang Berjalan - Data Diabaikan")
             else:
                 if "Terdeteksi" in data:
                     # Use regex to parse data

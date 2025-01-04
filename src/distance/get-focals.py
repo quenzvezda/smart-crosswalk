@@ -12,6 +12,8 @@ import cv2
 ref_point = []
 cropping = False
 
+camera_index = 0
+
 
 def click_and_crop(event, x, y, flags, param):
     global ref_point, cropping, img_copy
@@ -47,6 +49,8 @@ def main():
         if not ret:
             print("Gagal mengambil gambar.")
             break
+
+        frame = cv2.flip(frame, camera_index)
 
         cv2.imshow("Webcam Feed", frame)
 
