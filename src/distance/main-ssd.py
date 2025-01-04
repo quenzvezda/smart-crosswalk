@@ -17,8 +17,10 @@ model = tf.saved_model.load(model_path)
 # Inisialisasi label kelas (sesuaikan dengan model Anda)
 class_names = {0: 'background', 1: 'mobil', 2: 'orang'}
 
+camera_index = 0
+
 # Inisialisasi video capture / webcam
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(camera_index)
 
 
 def preprocess_image(image):
@@ -49,6 +51,8 @@ while True:
     if not ret:
         print("Gagal mengambil gambar.")
         break
+
+    frame = cv2.flip(frame, camera_index)
 
     # Preprocessing gambar
     input_image = preprocess_image(frame)
