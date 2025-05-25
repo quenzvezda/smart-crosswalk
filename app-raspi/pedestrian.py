@@ -13,6 +13,11 @@ def play_audio(file_name):
     audio_thread.start()
     logger.info(f"Suara diputar: {file_name}")
 
+def play_beep_for(duration):
+    end = time() + duration
+    while time() < end:
+        playsound('sound/beep.wav')
+
 
 def print_status_with_countdown(message, countdown):
     for i in range(countdown, 0, -1):
@@ -48,6 +53,7 @@ def cross_red_to_green():
 
 
 def cross_green_to_red():
+    threading.Thread(target=play_beep_for, args=(2,)).start()
     pejalan_kaki_kiri['hijau'].off()
     pejalan_kaki_kanan['hijau'].off()
     pejalan_kaki_kiri['kuning'].on()
