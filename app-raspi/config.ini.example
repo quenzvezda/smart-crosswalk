@@ -22,9 +22,14 @@ vehicle_green = 25
 # Paths to audio files
 wait_audio = sound/mohon-tunggu.mp3
 go_audio = sound/silakan.mp3
+beep_audio = sound/beep.wav
+
+# Durasi (dalam detik) untuk loop-beep
+beep_duration   = 2
 
 [Pedestrian]
 # Durations for pedestrian crossing
 delay_before_crossing_with_vehicle = 10
-delay_before_crossing_without_vehicle = 5
+delay_before_crossing_without_vehicle = 0
 max_wait_time = 30
+vehicle_distance_threshold = 30
